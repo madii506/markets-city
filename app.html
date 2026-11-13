@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>markets</title>
+<meta name="description" content="Trade real stocks on Solana from your own wallet. Live prices, Jupiter routing, nothing held for you.">
+<meta property="og:title" content="markets · app">
+<meta property="og:description" content="trade stocks. own the city. build your empire.">
+<meta name="theme-color" content="#110e28">
+<link rel="icon" href="/assets/img/favicon.png">
+<link rel="apple-touch-icon" href="/assets/img/icon-180.png">
+<link rel="preload" href="/assets/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/inter-italic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/m.css">
+<style>
+body{min-height:100vh;background:var(--night)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:420px;pointer-events:none;background:radial-gradient(70% 100% at 50% -30%,rgba(141,90,160,.30),rgba(233,119,154,.08) 55%,transparent 75%);z-index:0}
+.top{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:66px;padding:0 max(16px,3vw);background:rgba(17,14,40,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.top .mark{font-size:24px;justify-self:start}
+.tabs{display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.tabs a{padding:7px 16px;border-radius:999px;font-size:14px;font-weight:600;color:var(--sub);transition:all .2s}
+.tabs a:hover{color:var(--text)}
+.tabs a.on{background:#fff;color:#1b1640}
+.right{justify-self:end;display:flex;align-items:center;gap:10px}
+.solp{font-size:13px;color:var(--sub);display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.solp b{color:var(--text);font-weight:650}
+.who{display:flex;align-items:center;gap:8px;height:38px;padding:0 6px 0 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--line2);font-size:13.5px;font-weight:650}
+.who i{width:8px;height:8px;border-radius:50%;background:var(--up)}
+.who button{height:28px;padding:0 10px;border-radius:999px;font-size:12px;color:var(--sub);background:rgba(255,255,255,.06)}
+.who button:hover{color:var(--text)}
+main{position:relative;z-index:1;width:min(1240px,100% - 32px);margin:0 auto;padding:28px 0 80px}
+.view{display:none;animation:vin .45s var(--ease)}
+.view.on{display:block}
+@keyframes vin{from{opacity:0;transform:translateY(8px)}}
+h1.h{font-size:clamp(30px,4vw,44px);font-style:italic;font-weight:900;letter-spacing:-.04em;line-height:1.05}
+.sub{color:var(--sub);font-size:14.5px;margin-top:6px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.feed{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:650;color:var(--mute)}
+.feed i{width:7px;height:7px;border-radius:50%;background:var(--up)}
+.feed.off i{background:var(--down)}
+
+/* ---------- markets */
+.mk-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:22px}
+.search{position:relative;width:min(340px,100%)}
+.search input{width:100%;height:44px;border-radius:999px;background:var(--panel);border:1px solid var(--line2);padding:0 16px 0 40px;outline:none;font-size:14.5px;transition:border-color .2s}
+.search input:focus{border-color:rgba(255,180,143,.6)}
+.search svg{position:absolute;left:14px;top:13px;opacity:.6}
+.movers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:22px}
+.mv{display:flex;align-items:center;gap:11px;padding:14px;border-radius:16px;background:var(--panel);border:1px solid var(--line);transition:all .25s}
+.mv:hover{border-color:var(--line3);transform:translateY(-2px)}
+.mv small{display:block;font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--mute);text-transform:uppercase}
+.mv b{font-weight:750}
+.mv .chg{margin-left:auto}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.seg button{height:36px;padding:0 15px;border-radius:999px;border:1px solid var(--line2);font-size:13.5px;font-weight:600;color:var(--sub);transition:all .2s}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:#fff;color:#1b1640;border-color:#fff}
+.tbl{border-radius:var(--r);border:1px solid var(--line);overflow:hidden;background:var(--panel)}
+.row{display:grid;grid-template-columns:minmax(0,2.3fr) 1.1fr .9fr 1fr 1fr 1fr 110px;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--line);transition:background .15s;cursor:pointer}
+.row:first-child{border-top:0}
+.row:hover{background:var(--panel2)}
+.row.th{cursor:default;background:transparent;font-size:12px;font-weight:650;color:var(--mute);letter-spacing:.04em;padding-top:13px;padding-bottom:13px}
+.row.th:hover{background:transparent}
+.row.th button{color:inherit;font-weight:inherit;text-align:inherit;display:flex;gap:4px;align-items:center}
+.row.th button.on{color:var(--text)}
+.row .nm{display:flex;align-items:center;gap:12px;min-width:0}
+.row .nm b{display:block;font-weight:700}
+.row .nm small{display:block;color:var(--mute);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .r{text-align:right;font-variant-numeric:tabular-nums}
+.row .px{font-weight:650}
+.row .muted{color:var(--sub)}
+.row .act{display:flex;justify-content:flex-end}
+.row .na{color:var(--mute);font-size:13px}
+.empty{padding:40px 20px;text-align:center;color:var(--sub)}
+
+/* ---------- trade */
+.tr-grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+.st-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.st-head .pick{display:flex;align-items:center;gap:14px;text-align:left;padding:6px 12px 6px 6px;margin-left:-6px;border-radius:16px;transition:background .2s}
+.st-head .pick:hover{background:var(--panel)}
+.st-head h1{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.st-head .tk{font-size:13px;color:var(--mute);font-weight:600}
+.st-head .caret{color:var(--mute);margin-left:4px}
+.st-px{margin-left:auto;text-align:right}
+.st-px b{display:block;font-size:34px;font-weight:800;letter-spacing:-.035em;font-variant-numeric:tabular-nums;line-height:1.1}
+.chart-card{margin-top:18px;padding:16px 16px 10px}
+.ch-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.ch-top .lbl{font-size:12.5px;color:var(--sub);font-weight:600}
+.ch-top .state{font-size:11.5px;font-weight:700;letter-spacing:.06em;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--sub);text-transform:uppercase}
+.ch-top .state.open{background:rgba(110,240,182,.12);color:var(--up)}
+.rng{margin-left:auto;display:flex;gap:2px;padding:3px;border-radius:999px;background:rgba(255,255,255,.04)}
+.rng button{height:28px;padding:0 11px;border-radius:999px;font-size:12.5px;font-weight:650;color:var(--sub)}
+.rng button.on{background:var(--panel3);color:var(--text)}
+.chart{position:relative;height:330px;touch-action:pan-y}
+.chart svg{display:block;width:100%;height:100%}
+.chart .msg{position:absolute;inset:0;display:grid;place-items:center;color:var(--mute);font-size:14px;text-align:center;padding:20px}
+.chart .tip{position:absolute;top:6px;padding:6px 10px;border-radius:10px;background:rgba(14,11,34,.92);border:1px solid var(--line2);font-size:12px;pointer-events:none;white-space:nowrap;transform:translateX(-50%)}
+.chart .tip b{font-size:13.5px;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-top:18px}
+.stat{padding:16px 18px;border-left:1px solid var(--line)}
+.stat:first-child{border-left:0}
+.stat small{display:block;font-size:12px;color:var(--mute);font-weight:600;margin-bottom:4px}
+.stat b{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.about{margin-top:18px;padding:18px 20px;color:var(--sub);font-size:14.5px;line-height:1.7}
+.about b{color:var(--text)}
+.about a{color:var(--peach);font-weight:600}
+.mint{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+
+.tp{position:sticky;top:86px;padding:16px}
+.side{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:14px;background:rgba(255,255,255,.04);margin-bottom:14px}
+.side button{height:40px;border-radius:11px;font-weight:700;color:var(--sub);transition:all .2s}
+.side button.on.b{background:rgba(110,240,182,.14);color:var(--up)}
+.side button.on.s{background:rgba(255,107,129,.14);color:var(--down)}
+.box{padding:14px;border-radius:16px;background:var(--night2);border:1px solid var(--line);transition:border-color .2s}
+.box:focus-within{border-color:rgba(255,180,143,.5)}
+.box .bt{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mute);font-weight:600}
+.box .bt button{color:var(--peach);font-weight:700;font-size:12px;margin-left:8px}
+.box .bi{display:flex;align-items:center;gap:10px;margin-top:8px}
+.box input{flex:1;min-width:0;background:none;border:0;outline:none;font-size:28px;font-weight:750;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.box input::placeholder{color:var(--dim)}
+.box .out{flex:1;min-width:0;font-size:28px;font-weight:750;letter-spacing:-.03em;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.box .out.wait{color:var(--dim)}
+.box .usd{font-size:12.5px;color:var(--mute);margin-top:4px;font-variant-numeric:tabular-nums}
+.tok{display:flex;align-items:center;gap:7px;height:38px;padding:0 10px 0 5px;border-radius:999px;background:var(--panel2);border:1px solid var(--line2);font-weight:700;font-size:14px;flex:none}
+.tok select{appearance:none;-webkit-appearance:none;background:none;border:0;font-weight:700;outline:none;cursor:pointer;padding-right:14px;background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%),linear-gradient(135deg,var(--sub) 50%,transparent 50%);background-position:calc(100% - 6px) 50%,calc(100% - 2px) 50%;background-size:4px 4px;background-repeat:no-repeat}
+.tok select option{background:var(--panel);color:var(--text)}
+.flip{display:grid;place-items:center;margin:-8px auto;position:relative;z-index:2;width:36px;height:36px;border-radius:12px;background:var(--panel2);border:3px solid var(--panel);color:var(--sub);font-size:15px}
+.det{margin-top:14px;font-size:13px;color:var(--sub);display:grid;gap:7px}
+.det div{display:flex;justify-content:space-between;gap:12px}
+.det span:last-child{color:var(--text);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.det .warn span:last-child{color:var(--warn)}
+.det .bad span:last-child{color:var(--down)}
+.slip{display:flex;gap:4px}
+.slip button{height:24px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:650;color:var(--sub);background:rgba(255,255,255,.05)}
+.slip button.on{background:var(--panel3);color:var(--text)}
+.go{width:100%;height:54px;margin-top:16px;border-radius:16px;background:#fff;color:#1b1640;font-weight:750;font-size:16px;transition:transform .2s,opacity .2s,background .2s}
+.go:active{transform:scale(.98)}
+.go[disabled]{opacity:.5;cursor:default}
+.go.sell{background:linear-gradient(90deg,#ffb48f,#ef86a7);color:#2a1235}
+.ack{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:12.5px;color:var(--sub);line-height:1.5;cursor:pointer}
+.ack input{margin-top:3px;accent-color:#ffb48f;width:16px;height:16px;flex:none}
+.res{margin-top:14px;padding:12px 14px;border-radius:14px;font-size:13.5px;line-height:1.5;display:none}
+.res.on{display:block}
+.res.wait{background:rgba(255,255,255,.05);color:var(--sub)}
+.res.ok{background:rgba(110,240,182,.1);color:var(--up)}
+.res.err{background:rgba(255,107,129,.1);color:#ffb3bf}
+.res a{color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.spin{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:sp .8s linear infinite;vertical-align:-1px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tp-foot{margin-top:12px;font-size:11.5px;color:var(--mute);line-height:1.5;text-align:center}
+
+/* picker */
+.pk-list{max-height:min(60vh,480px);overflow:auto;margin:12px -8px 0;padding:0 8px}
+.pk-row{display:flex;align-items:center;gap:11px;width:100%;padding:10px;border-radius:12px;text-align:left}
+.pk-row:hover,.pk-row.on{background:var(--panel2)}
+.pk-row b{display:block;font-weight:700;font-size:14px}.pk-row small{color:var(--mute);font-size:12px}
+.pk-row .r{margin-left:auto;text-align:right;font-size:13px;font-variant-numeric:tabular-nums}
+
+/* ---------- portfolio */
+.pf-hero{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px;align-items:stretch}
+.nw{padding:24px;position:relative;overflow:hidden}
+.nw::after{content:"";position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,180,143,.35),rgba(233,119,154,.12) 50%,transparent 70%);pointer-events:none}
+.nw small{font-size:12.5px;font-weight:650;color:var(--mute);letter-spacing:.04em}
+.nw .big{font-size:clamp(38px,5vw,56px);font-weight:850;letter-spacing:-.045em;font-variant-numeric:tabular-nums;line-height:1.1;margin:6px 0 4px}
+.nw .addr{font-size:13px;color:var(--sub)}
+.nw .addr a{color:var(--peach);font-weight:600}
+.alloc{display:flex;height:10px;border-radius:999px;overflow:hidden;margin-top:22px;background:rgba(255,255,255,.06)}
+.alloc i{display:block;height:100%}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--sub)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:9px;height:9px;border-radius:3px}
+.cash{padding:20px;display:grid;gap:10px;align-content:start}
+.cash .ln{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.cash .ln:first-of-type{border-top:0}
+.cash .ln b{display:block;font-weight:700}.cash .ln small{color:var(--mute);font-size:12.5px}
+.cash .ln .r{margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.h3{font-size:18px;font-weight:750;letter-spacing:-.02em;margin:30px 0 12px;display:flex;justify-content:space-between;align-items:center}
+.h3 button{font-size:13px;color:var(--peach);font-weight:650}
+.hold .row{grid-template-columns:minmax(0,2fr) 1fr 1fr 1fr 1fr 110px}
+.connect-card{padding:clamp(28px,5vw,56px);text-align:center;background:linear-gradient(180deg,rgba(58,63,134,.35),rgba(141,90,160,.22) 55%,rgba(233,119,154,.12)),var(--panel)}
+.connect-card h2{font-size:clamp(28px,4vw,42px);font-style:italic;font-weight:900;letter-spacing:-.04em}
+.connect-card p{color:var(--sub);max-width:460px;margin:10px auto 24px}
+
+.toast{position:fixed;left:50%;bottom:24px;z-index:90;transform:translate(-50%,20px);padding:12px 18px;border-radius:14px;background:#fff;color:#1b1640;font-weight:650;font-size:14px;opacity:0;pointer-events:none;transition:all .3s var(--ease);max-width:calc(100% - 32px);box-shadow:0 20px 40px -16px rgba(0,0,0,.5)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:1060px){.tr-grid{grid-template-columns:minmax(0,1fr) 340px}.row{grid-template-columns:minmax(0,2fr) 1.1fr .9fr 1fr 1fr 96px}.row .c-mc{display:none}.movers{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){.top{grid-template-columns:1fr auto;height:auto;padding-top:10px;padding-bottom:10px;row-gap:10px}.tabs{grid-column:1/-1;grid-row:2;justify-self:stretch;justify-content:center}.tabs a{flex:1;text-align:center}.solp{display:none}.tr-grid{grid-template-columns:minmax(0,1fr);gap:0}.tr-main{display:contents}#stHead{order:1}.chart-card{order:2}.tp{position:static;order:3;margin-top:18px}#stats{order:4}#about{order:5}.pf-hero{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}}
+@media (max-width:720px){main{width:calc(100% - 24px);padding-top:18px}.movers{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -12px 18px;padding:0 12px;scrollbar-width:none}.movers::-webkit-scrollbar{display:none}.mv{flex:0 0 auto;min-width:205px;scroll-snap-align:start}.row{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:12px 14px}.row.th{display:none}.row .c-dp,.row .c-hd,.row .c-mc,.row .act{display:none}.row .c-px{grid-column:2;grid-row:1}.row .c-ch{grid-column:2;grid-row:2;justify-self:end}.row .nm{grid-row:1/3}.hold .row{grid-template-columns:minmax(0,1fr) auto}.hold .c-am{display:none}.chart{height:240px}.st-px b{font-size:28px}.st-head h1{font-size:21px}.box input,.box .out{font-size:24px}.who{padding-left:10px}.who button{font-size:0;width:28px;padding:0}.who button::after{content:'✕';font-size:12px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="mark" href="/" aria-label="markets home">markets</a>
+  <nav class="tabs" id="tabs"><a href="#markets" data-v="markets">Markets</a><a href="#trade" data-v="trade">Trade</a><a href="#portfolio" data-v="portfolio">Portfolio</a></nav>
+  <div class="right"><span class="solp" id="solp"></span><span id="wslot"><button class="btn btn-w btn-s" data-connect>Connect wallet</button></span></div>
+</header>
+
+<main>
+  <!-- markets -->
+  <section class="view" id="v-markets">
+    <div class="mk-head">
+      <div><h1 class="h">Markets</h1><div class="sub" id="mkSub">Real stocks on Solana, priced live.</div></div>
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" placeholder="Search Nvidia, SPY, gold…" autocomplete="off" aria-label="Search stocks"></label>
+    </div>
+    <div class="movers" id="movers"></div>
+    <div class="seg" id="kinds"><button class="on" data-k="all">All</button><button data-k="stock">Stocks</button><button data-k="etf">ETFs</button><button data-k="metal">Gold &amp; silver</button></div>
+    <div class="tbl" id="tbl"></div>
+  </section>
+
+  <!-- trade -->
+  <section class="view" id="v-trade">
+    <div class="tr-grid">
+      <div class="tr-main">
+        <div class="st-head" id="stHead"></div>
+        <div class="panel chart-card">
+          <div class="ch-top"><span class="lbl" id="chLbl">—</span><span class="state" id="chState" hidden></span>
+            <div class="rng" id="rng"><button class="on" data-r="1D">1D</button><button data-r="1W">1W</button><button data-r="1M">1M</button><button data-r="6M">6M</button><button data-r="1Y">1Y</button></div></div>
+          <div class="chart" id="chart"><div class="msg">Loading the chart…</div></div>
+        </div>
+        <div class="panel stats" id="stats"></div>
+        <div class="panel about" id="about"></div>
+      </div>
+      <aside class="panel tp" id="tp">
+        <div class="side" id="side"><button class="b on" data-s="buy">Buy</button><button class="s" data-s="sell">Sell</button></div>
+        <div class="box">
+          <div class="bt"><span>You pay</span><span id="balIn"></span></div>
+          <div class="bi"><input id="amt" inputmode="decimal" placeholder="0" autocomplete="off" aria-label="Amount to pay"><span class="tok" id="tokIn"></span></div>
+          <div class="usd" id="usdIn">&nbsp;</div>
+        </div>
+        <div class="flip" aria-hidden="true">↓</div>
+        <div class="box">
+          <div class="bt"><span>You receive</span><span id="balOut"></span></div>
+          <div class="bi"><div class="out wait" id="outAmt">0</div><span class="tok" id="tokOut"></span></div>
+          <div class="usd" id="usdOut">&nbsp;</div>
+        </div>
+        <div class="det" id="det"></div>
+        <label class="ack" id="ackRow" hidden><input type="checkbox" id="ack"><span>I am not a US person and xStocks are allowed where I live. I understand they track the share price and are not the shares themselves.</span></label>
+        <button class="go" id="go" disabled>Enter an amount</button>
+        <div class="res" id="res" aria-live="polite"></div>
+        <div class="tp-foot">Routed by Jupiter. You sign every trade in your own wallet. markets adds no fee.</div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- portfolio -->
+  <section class="view" id="v-portfolio"><div id="pf"></div></section>
+</main>
+
+<div class="sheet" id="wsheet" role="dialog" aria-modal="true" aria-labelledby="wsh"><div class="sheet-in" style="position:relative">
+  <button class="x" data-close aria-label="Close">✕</button>
+  <h3 id="wsh">Connect a wallet</h3>
+  <p>markets never holds your funds. Your wallet signs every trade.</p>
+  <div id="wlist"></div>
+</div></div>
+
+<div class="sheet" id="psheet" role="dialog" aria-modal="true" aria-labelledby="psh"><div class="sheet-in" style="position:relative">
+  <button class="x" data-close aria-label="Close">✕</button>
+  <h3 id="psh">Pick a stock</h3>
+  <label class="search" style="width:100%;margin-top:12px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="pq" placeholder="Search" autocomplete="off" aria-label="Search stocks"></label>
+  <div class="pk-list" id="plist"></div>
+</div></div>
+
+<div class="toast" id="toast" role="status"></div>
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/wallet.js"></script>
+<script src="/assets/js/app.js"></script>
+</body>
+</html>
