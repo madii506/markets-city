@@ -198,29 +198,53 @@ async function chart(sym, r) {
     try {
       const j = await getJ(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ysym)}?range=${R[0]}&interval=${R[1]}&includePrePost=false`, { headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', accept: 'application/json' } });
       const res = j && j.chart && j.chart.result && j.chart.result[0]; if (!res) throw new Error('no chart');
-      const ts = res.timestamp || [], cl = (res.indicators && res.indicators.quote && res.indicators.quote[0] && res.indicators.quote[0].close) || [];
-      const pts = []; for (let k = 0; k < ts.length; k++) if (cl[k] != null) pts.push([ts[k] * 1000, +cl[k].toFixed(4)]);
+      const ts = res.timestamp || [], qq = (res.indicators && res.indicators.quote && res.indicators.quote[0]) || {};
+      const O = qq.open || [], Hh = qq.high || [], Lw = qq.low || [], C = qq.close || [], V = qq.volume || [];
+      const pts = []; for (let k = 0; k < ts.length; k++) if (C[k] != null) pts.push([ts[k] * 1000, r4(O[k] != null ? O[k] : C[k]), r4(Hh[k] != null ? Hh[k] : C[k]), r4(Lw[k] != null ? Lw[k] : C[k]), r4(C[k]), Math.round(V[k] || 0)]);
       if (pts.length < 2) throw new Error('no chart');
       const m = res.meta || {};
-      return { sym, src: 'share', label: `${ysym} · ${m.fullExchangeName || m.exchangeName || 'US market'}`, pts, prev: m.chartPreviousClose != null ? m.chartPreviousClose : (m.previousClose != null ? m.previousClose : pts[0][1]), last: m.regularMarketPrice != null ? m.regularMarketPrice : pts[pts.length - 1][1], state: m.currentTradingPeriod ? marketState(m.currentTradingPeriod) : null };
+      return { sym, src: 'share', label: `${ysym} · ${m.fullExchangeName || m.exchangeName || 'US market'}`, exch: m.fullExchangeName || m.exchangeName || null, pts, prev: m.chartPreviousClose != null ? m.chartPreviousClose : (m.previousClose != null ? m.previousClose : pts[0][4]), last: m.regularMarketPrice != null ? m.regularMarketPrice : pts[pts.length - 1][4], state: m.currentTradingPeriod ? marketState(m.currentTradingPeriod) : null };
     } catch (e) {
-      const pools = await getJ(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${s.mint}/pools?page=1`);
-      const pool = pools && pools.data && pools.data[0] && pools.data[0].attributes && pools.data[0].attributes.address; if (!pool) fail('no chart for this stock yet');
+      const p = await poolOf(s);
       const tf = { '1D': ['minute', 15, 96], '1W': ['hour', 1, 168], '1M': ['hour', 4, 180], '6M': ['day', 1, 180], '1Y': ['day', 1, 365] }[r] || ['minute', 15, 96];
-      const o = await getJ(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${pool}/ohlcv/${tf[0]}?aggregate=${tf[1]}&limit=${tf[2]}&currency=usd&token=${s.mint}`);
-      const L = ((o && o.data && o.data.attributes && o.data.attributes.ohlcv_list) || []).map(c => [c[0] * 1000, +c[4]]).reverse();
+      const o = await getJ(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${p.address}/ohlcv/${tf[0]}?aggregate=${tf[1]}&limit=${tf[2]}&currency=usd&token=${s.mint}`);
+      const L = ((o && o.data && o.data.attributes && o.data.attributes.ohlcv_list) || []).map(c => [c[0] * 1000, r4(c[1]), r4(c[2]), r4(c[3]), r4(c[4]), Math.round(c[5] || 0)]).reverse();
       if (L.length < 2) fail('no chart for this stock yet');
-      return { sym, src: 'pool', label: `${s.tok} · on-chain pool`, pts: L, prev: L[0][1], last: L[L.length - 1][1], state: null };
+      return { sym, src: 'pool', label: `${s.tok} · on-chain pool`, exch: null, pts: L, prev: L[0][4], last: L[L.length - 1][4], state: null };
     }
   });
 }
+const r4 = x => x == null ? null : Math.round(x * 10000) / 10000;
 function marketState(p) { const now = Date.now() / 1000, reg = p.regular; if (reg && now >= reg.start && now < reg.end) return 'open'; if (p.pre && now >= p.pre.start && now < p.pre.end) return 'pre'; if (p.post && now >= p.post.start && now < p.post.end) return 'after'; return 'closed'; }
+
+// the deepest on-chain pool for a stock, and its latest real trades (time & sales)
+async function poolOf(s) {
+  return memo('pool:' + s.mint, 3600e3, async () => {
+    const j = await getJ(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${s.mint}/pools?page=1`);
+    const d = ((j && j.data) || []).slice().sort((a, b) => (+b.attributes.reserve_in_usd || 0) - (+a.attributes.reserve_in_usd || 0));
+    if (!d[0]) fail('no pool for this stock yet');
+    const a = d[0].attributes, dex = d[0].relationships && d[0].relationships.dex && d[0].relationships.dex.data && d[0].relationships.dex.data.id;
+    return { address: a.address, name: a.name, dex: dex || null, reserve: +a.reserve_in_usd || null };
+  });
+}
+async function trades(sym) {
+  const s = BY_SYM[sym]; if (!s) fail('unknown stock');
+  return memo('trades:' + sym, 15000, async () => {
+    const p = await poolOf(s);
+    const j = await getJ(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${p.address}/trades`);
+    const L = ((j && j.data) || []).slice(0, 50).map(t => {
+      const a = t.attributes, buy = a.to_token_address === s.mint;
+      return { t: Date.parse(a.block_timestamp), side: buy ? 'buy' : 'sell', amt: +(buy ? a.to_token_amount : a.from_token_amount) || 0, usd: +a.volume_in_usd || 0, px: +(buy ? a.price_to_in_usd : a.price_from_in_usd) || null, tx: a.tx_hash, who: a.tx_from_address || null };
+    }).filter(x => x.amt > 0);
+    return { sym, pool: p, trades: L, t: Date.now() };
+  });
+}
 
 // one-day sparklines for a handful of stocks at once (homepage cards)
 async function sparks(list) {
   const syms = String(list || '').split(',').filter(x => BY_SYM[x]).slice(0, 16);
   const o = {};
-  await Promise.all(syms.map(async s => { try { const c = await chart(s, '1D'); o[s] = c.pts.filter((_, k, a) => k % Math.max(1, Math.floor(a.length / 48)) === 0).map(p => p[1]); } catch { } }));
+  await Promise.all(syms.map(async s => { try { const c = await chart(s, '1D'); o[s] = c.pts.filter((_, k, a) => k % Math.max(1, Math.floor(a.length / 48)) === 0).map(p => p[4]); } catch { } }));
   return { sparks: o };
 }
 
@@ -236,6 +260,7 @@ module.exports = async (req, res) => {
     if (a === 'wallet') return out(res, 200, await wallet(q.get('addr')));
     if (a === 'chart') return out(res, 200, await chart(q.get('sym'), q.get('r')), 'public, s-maxage=60, stale-while-revalidate=300');
     if (a === 'sparks') return out(res, 200, await sparks(q.get('syms')), 'public, s-maxage=300, stale-while-revalidate=900');
+    if (a === 'trades') return out(res, 200, await trades(q.get('sym')), 'public, s-maxage=10, stale-while-revalidate=30');
     if (a === 'list') return out(res, 200, { stocks: STOCKS }, 'public, s-maxage=3600');
     return out(res, 404, { error: 'unknown action' });
   } catch (e) {
