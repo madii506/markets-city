@@ -441,6 +441,7 @@
     if (c === 'portfolio' || c === 'pf') { location.hash = '#portfolio'; return cmdOut('your portfolio', 'ok'); }
     if (c === 'city') { location.hash = '#city'; return cmdOut('the city', 'ok'); }
     if (c === 'perps' || c === 'perp') { location.hash = '#perps'; return cmdOut('the perps desk', 'ok'); }
+    if (c === 'trench' || c === 'trenches' || c === 'tr') { location.hash = '#trench' + (w[1] && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(w[1]) ? '/' + w[1] : ''); return cmdOut('the trenches', 'ok'); }
     if (c === 'long' || c === 'short') { const a = (w[1] || 'sol').toUpperCase(); if (!['SOL', 'BTC', 'ETH'].includes(a)) return cmdOut('perps: sol, btc or eth', 'err'); location.hash = '#perps'; P2.a = a; P2.side = c; if (w[2] && /^\d*\.?\d+$/.test(w[2])) { P2.amt = w[2]; $('#pamt').value = w[2]; } const lv = (w[3] || '').replace(/x$/i, ''); if (lv && +lv >= 1.1 && +lv <= 100) { P2.lev = +lv; $('#plev').value = lv; } setTimeout(() => { renderPerpMarkets && P2.mk && renderPerpMarkets(); renderPerpHead(); perpQuoteSoon(); loadPerpChart(); }, 50); return cmdOut(`${c} ${a}${w[2] ? ' · ' + w[2] + ' ' + P2.input : ''}${lv ? ' · ' + lv + 'x' : ''} · press the button to sign`, 'ok'); }
     if (c === 'docs' || c === 'man') { location.hash = '#docs'; return cmdOut('the docs', 'ok'); }
     if (c === 'claim') { location.hash = '#city'; const id = (w[1] || '').toLowerCase(); setTimeout(() => { const it = S.city && S.city.items.find(i => i.id === id || i.sym.toLowerCase() === id); if (it) openClaim(it.id); }, 400); return cmdOut(id ? 'claim ' + id : 'pick an open asset to claim', 'ok'); }
@@ -477,7 +478,7 @@
     if (e.key === 'F3' || e.key === 'F4') { e.preventDefault(); show('trade'); setSide(e.key === 'F3' ? 'buy' : 'sell'); $('#amt').focus(); return; }
     if (typing()) return;
     if (e.key === '/') { e.preventDefault(); cmd.focus(); return; }
-    if (/^[1-7]$/.test(e.key)) { location.hash = ['#overview', '#trade', '#markets', '#city', '#perps', '#portfolio', '#docs'][+e.key - 1]; return; }
+    if (/^[1-8]$/.test(e.key)) { location.hash = ['#overview', '#trade', '#markets', '#city', '#perps', '#trench', '#portfolio', '#docs'][+e.key - 1]; return; }
     if (S.view === 'perps' && (e.key === 'l' || e.key === 's')) { P2.side = e.key === 'l' ? 'long' : 'short'; perpQuoteSoon(); return; }
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && S.view === 'trade' && S.P) { e.preventDefault(); const L = wlList(), i = L.findIndex(s => s.sym === S.sym); const n = L[Math.max(0, Math.min(L.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))]; if (n) pick(n.sym); }
   });
@@ -486,7 +487,7 @@
   // ---------------------------------------------------------------- the city: real estate, businesses and rides, each a real coin
   const IT = window.MarketsItems;
   const iconCache = {};
-  function cityIcon(c) { const k = c.id || c.sym; if (iconCache[k]) return iconCache[k]; const art = c.art || c.icon; return (iconCache[k] = IT && art && IT.ICON[art] ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(IT.tile({ cat: c.cat, icon: art }, 64, { r: 0 })) : null); }
+  function cityIcon(c) { const k = c.id || c.sym; if (iconCache[k]) return iconCache[k]; if (IT && c.id && IT.photo) return (iconCache[k] = IT.photo(c, true)); const art = c.art || c.icon; return (iconCache[k] = IT && art && IT.ICON[art] ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(IT.tile({ cat: c.cat, icon: art }, 64, { r: 0 })) : null); }
   async function loadCity() {
     try { S.city = await api('city'); renderCity(); if (S.view === 'overview') renderOverview(); }
     catch (e) { if (!S.city) $('#cgrid').innerHTML = `<div class="empty">The city is not answering: ${esc(e.message)} <button class="kb" id="crt">Retry</button></div>`; const b = $('#crt'); if (b) b.onclick = loadCity; }
@@ -498,7 +499,7 @@
     $('#ctCount').textContent = `${n}/${C.items.length} founded`;
     $('#ctLead').textContent = C.registry ? 'Real estate, businesses and rides. Every one is a real coin on Solana: claim an open one to launch it and earn its creator fees, or buy into one that already has a founder.' : 'Real estate, businesses and rides, each one a real coin on Solana. Claiming opens as soon as the city registry is connected.';
     $('#cgrid').innerHTML = L.map(i => {
-      const art = IT.tile(i, 300, { r: 0, slice: true });
+      const art = IT.art(i, 300);
       const st = i.status === 'live' ? 'FOUNDED' : i.status === 'pending' ? 'BEING FOUNDED' : 'OPEN';
       const body = i.status === 'live'
         ? `<div class="cs"><span>PRICE <b>${i.usd != null ? '$' + (i.usd < 0.01 ? i.usd.toPrecision(3) : px(i.usd)) : '—'}</b></span><span>24H <b class="${cls(i.ch24)}">${pc(i.ch24)}</b></span><span>MCAP <b>${big(i.mcap)}</b></span><span>HOLDERS <b>${int(i.holders)}</b></span><span style="grid-column:1/-1">FOUNDER <b>${short(i.founder)}</b></span></div>
@@ -523,7 +524,7 @@
     const it = S.city && S.city.items.find(i => i.id === id); if (!it) return;
     if (it.status !== 'open') { toast('that one already has a founder'); return; }
     claiming = it;
-    $('#clArt').innerHTML = IT.tile(it, 84, { r: 0 });
+    $('#clArt').innerHTML = IT.art(it, 84);
     $('#csh').textContent = 'found ' + it.name.toLowerCase();
     $('#clSub').innerHTML = `$${esc(it.sym)} · ${esc(IT.CAT[it.cat])}`;
     $('#clText').innerHTML = `You launch <b>$${esc(it.sym)}</b> on pump.fun from your own wallet and become its founder. pump.fun pays the founder creator fees on every trade of it, for as long as it trades. Anyone can then buy and sell it here. It is a memecoin named after a city asset, not a share of a real building or vehicle.`;
@@ -547,7 +548,7 @@
       line = say('making the coin key in this browser<span class="spin"></span>');
       const W3 = await WAL.web3(); const kp = W3.Keypair.generate(); const mint = kp.publicKey.toBase58();
       line.innerHTML = 'coin address ' + short(mint);
-      line = say('drawing the coin image<span class="spin"></span>'); const image = await IT.png(it, 512); line.innerHTML = 'coin image ready';
+      line = say('drawing the coin image<span class="spin"></span>'); const image = await IT.photoPng(it, 512); if (!image) throw new Error('could not draw the coin image'); line.innerHTML = 'coin image ready';
       line = say('reserving it and uploading to pump.fun<span class="spin"></span>');
       const c = await post('claim', { item: it.id, user: WAL.W.addr, mint, buy, image, x: (window.MARKETS || {}).x || '' }); line.innerHTML = 'reserved for you for 4 minutes';
       line = say('sign the launch in your wallet<span class="spin"></span>');
@@ -806,7 +807,7 @@
   });
 
   // ---------------------------------------------------------------- search everything (Ctrl+K)
-  const PAGES = [['overview', 'Market overview'], ['trade', 'Trade'], ['markets', 'All stocks'], ['city', 'The city'], ['perps', 'Perps desk'], ['portfolio', 'Portfolio'], ['docs', 'Docs']];
+  const PAGES = [['overview', 'Market overview'], ['trade', 'Trade'], ['markets', 'All stocks'], ['city', 'The city'], ['perps', 'Perps desk'], ['trench', 'The trenches: live pump.fun coins'], ['portfolio', 'Portfolio'], ['docs', 'Docs']];
   let SK = { on: false, i: 0, L: [] };
   function skItems(q) {
     q = q.trim().toLowerCase(); const out = [], m = (...t) => !q || t.some(x => String(x || '').toLowerCase().includes(q));
@@ -838,22 +839,209 @@
   $('#skBtn').addEventListener('click', skOpen);
   document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); SK.on ? skClose() : skOpen(); } }, true);
 
+  // ---------------------------------------------------------------- the trenches: pump.fun coins as they launch, in their final stretch and
+  // just graduated. Live from Jupiter's pool data; any of them buys or sells through Jupiter from the user's own wallet.
+  const TR = { d: null, err: null, amt: store.get('markets.tr.amt') || '0.1', slip: +(store.get('markets.tr.slip')) || 1000, q: '', col: 'fresh', hov: null, seen: new Set(), drawn: false,
+    tk: null, info: null, infoAt: 0, side: 'buy', quote: null, qid: 0, quoting: false, busy: false };
+  const TRC = ['fresh', 'soon', 'done'];
+  const ago = t => { if (!t) return '—'; const s = Math.max(0, (Date.now() - t) / 1000); return s < 60 ? Math.floor(s) + 's' : s < 3600 ? Math.floor(s / 60) + 'm' : s < 86400 ? Math.floor(s / 3600) + 'h' : Math.floor(s / 86400) + 'd'; };
+  const pct0 = x => x == null ? '—' : (x < 10 ? x.toFixed(1) : x.toFixed(0)) + '%';
+  const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+  const trAll = () => TR.d ? TRC.flatMap(k => TR.d[k] || []) : [];
+  const trFind = m => trAll().find(c => c.mint === m) || null;
+  function trTags(c) {
+    const t = [];
+    if (c.holders != null) t.push(`<span title="holders">H ${int(c.holders)}</span>`);
+    if (c.top10 != null) t.push(`<span class="${c.top10 > 35 ? 'bad' : ''}" title="top 10 holders own">T10 ${pct0(c.top10)}</span>`);
+    if (c.dev != null) t.push(`<span class="${c.dev > 8 ? 'bad' : ''}" title="the dev holds">DEV ${pct0(c.dev)}</span>`);
+    if (c.snipe != null && c.snipe > 0) t.push(`<span class="${c.snipe > 20 ? 'bad' : ''}" title="snipers hold">SNP ${pct0(c.snipe)}</span>`);
+    if (c.insider != null && c.insider > 0) t.push(`<span class="${c.insider > 20 ? 'bad' : ''}" title="insiders hold">INS ${pct0(c.insider)}</span>`);
+    return t.join('');
+  }
+  const trSoc = c => [c.x ? `<a href="${esc(c.x)}" target="_blank" rel="noopener nofollow" title="X">𝕏</a>` : '', c.tg ? `<a href="${esc(c.tg)}" target="_blank" rel="noopener nofollow" title="Telegram">tg</a>` : '', c.web ? `<a href="${esc(c.web)}" target="_blank" rel="noopener nofollow" title="Website">web</a>` : ''].join('');
+  function trCard(c, col, fresh) {
+    const t = col === 'done' ? (c.grad || c.born) : c.born;
+    const bar = col !== 'done' && c.bc != null ? `<div class="bcb" title="bonding curve ${c.bc.toFixed(1)}%"><i style="width:${Math.min(100, Math.max(2, c.bc)).toFixed(1)}%"></i></div>` : '';
+    return `<div class="tc${fresh ? ' nw' : ''}" data-mint="${esc(c.mint)}">
+      <span class="ti">${mono(c.sym)}${c.icon ? `<img src="${esc(c.icon)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span>
+      <div class="tm"><div class="t1"><b>${esc(c.name || c.sym)}</b><span>${esc(c.sym)}</span>${trSoc(c)}<em data-born="${t || ''}">${ago(t)}</em></div>
+        <div class="t2"><span>MC <b>${big(c.mcap)}</b></span>${c.v5 != null ? `<span>V <b>${big(c.v5)}</b></span>` : ''}${c.b5 != null ? `<span><b class="up">${c.b5}</b>/<b class="dn">${c.s5}</b></span>` : ''}${col === 'soon' && c.bc != null ? `<span><b>${c.bc.toFixed(0)}%</b></span>` : ''}</div>
+        <div class="t3">${trTags(c)}</div>${bar}</div>
+      <button class="qb" data-qb="${esc(c.mint)}" aria-label="Buy ${esc(TR.amt)} SOL of ${esc(c.sym)}">⚡ ${esc(TR.amt)}</button></div>`;
+  }
+  function trFilter(L) { const q = TR.q.trim().toLowerCase(); return !q ? L : L.filter(c => (c.name || '').toLowerCase().includes(q) || (c.sym || '').toLowerCase().includes(q) || c.mint.toLowerCase() === q); }
+  function renderTrench() {
+    if (!TR.d) return;
+    const q = TR.q.trim();
+    for (const col of TRC) {
+      const paused = TR.hov === col; $('#trp-' + col).hidden = !paused; if (paused && TR.drawn) continue;
+      const L = trFilter(TR.d[col] || []); $('#trn-' + col).textContent = L.length;
+      let h = L.map(c => trCard(c, col, TR.drawn && !TR.seen.has(c.mint))).join('');
+      if (!h) h = `<div class="empty">${q ? 'Nothing matches.' : 'Nothing here right now. It refreshes every few seconds.'}</div>`;
+      if (col === 'fresh' && B58.test(q) && !trFind(q)) h = `<button class="tc-open" data-open="${esc(q)}">Open ${esc(short(q))} and trade it →</button>` + h;
+      $('#trl-' + col).innerHTML = h;
+    }
+    trAll().forEach(c => TR.seen.add(c.mint)); TR.drawn = true;
+  }
+  async function loadTrench() {
+    try {
+      TR.d = await api('trench'); TR.err = null;
+      $('#trSt').innerHTML = `<i class="dot">●</i> live · ${TR.d.src === 'jupiter' ? 'jupiter data' : 'pump.fun data'}`;
+      renderTrench();
+    } catch (e) {
+      TR.err = e.message; $('#trSt').textContent = 'feed paused, retrying';
+      if (!TR.d) TRC.forEach(k => { $('#trl-' + k).innerHTML = `<div class="empty">The feed is not answering: ${esc(e.message)}</div>`; });
+    }
+  }
+  setInterval(() => { if (!document.hidden && S.view === 'trench') loadTrench(); }, 3000);
+  setInterval(() => { if (S.view !== 'trench' || document.hidden) return; $$('#trGrid [data-born]').forEach(e => { if (e.dataset.born) e.textContent = ago(+e.dataset.born); }); }, 1000);
+  if (matchMedia('(hover: hover)').matches) $$('#trGrid .tcol').forEach(el => { el.addEventListener('mouseenter', () => { TR.hov = el.dataset.col; $('#trp-' + TR.hov).hidden = false; }); el.addEventListener('mouseleave', () => { TR.hov = null; renderTrench(); }); });
+  function trSetAmt(v) { TR.amt = v; store.set('markets.tr.amt', v); $$('#trAmt button').forEach(b => b.classList.toggle('on', b.dataset.a === v)); $$('#trGrid .qb').forEach(b => { b.textContent = '⚡ ' + v; }); }
+  function trSetSlip(v) { TR.slip = v; store.set('markets.tr.slip', String(v)); $$('#trSlip button, #tsSlip button').forEach(b => b.classList.toggle('on', +b.dataset.s === v)); if (TR.tk) trQuoteSoon(); }
+  $('#trAmt').addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b) trSetAmt(b.dataset.a); });
+  $('#trSlip').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b) trSetSlip(+b.dataset.s); });
+  $('#trCol').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; TR.col = b.dataset.c; $$('#trCol button').forEach(x => x.classList.toggle('on', x === b)); $$('#trGrid .tcol').forEach(x => x.classList.toggle('on', x.dataset.col === TR.col)); });
+  $('#trq').addEventListener('input', e => { TR.q = e.target.value; renderTrench(); });
+  $('#trGrid').addEventListener('click', e => {
+    if (e.target.closest('a')) return;
+    const qb = e.target.closest('[data-qb]'); if (qb) { const c = trFind(qb.dataset.qb) || { mint: qb.dataset.qb, sym: '' }; trQuick(c, qb); return; }
+    const op = e.target.closest('[data-open]'); if (op) { location.hash = '#trench/' + op.dataset.open; return; }
+    const r = e.target.closest('.tc'); if (r) location.hash = '#trench/' + r.dataset.mint;
+  });
+  async function trSwap(inS, outS, raw, say) {
+    const q = await api('quote', { in: inS, out: outS, amt: raw, slip: TR.slip });
+    say && say('swap built by jupiter · ' + esc((q.route || []).join(' › ') || 'route found'));
+    const sw = await post('swap', { quote: q.quote, user: WAL.W.addr });
+    say && say('confirm in your wallet<span class="spin"></span>');
+    const sig = await WAL.signAndSend(sw.tx, async b64 => (await post('send', { tx: b64 })).sig);
+    return { q, sig };
+  }
+  async function trQuick(c, btn) {
+    if (!WAL.W.addr) return openWallet();
+    const a = parseFloat(TR.amt); if (!(a > 0) || btn.disabled) return;
+    if (S.bal && S.bal.sol != null && S.bal.sol < a + 0.01) { toast(`you need a little more than ${TR.amt} SOL`); return; }
+    btn.disabled = true; btn.classList.add('wk');
+    try {
+      toast(`buying ${TR.amt} SOL of $${c.sym || short(c.mint)}…`);
+      const { q, sig } = await trSwap('SOL', c.mint, Math.round(a * 1e9).toString(), m => toast(m.replace(/<[^>]+>/g, '')));
+      toast('sent, waiting for solana…');
+      const st = await waitSig(sig);
+      toast(st === 'ok' ? `bought ${amt(q.outUi, 0)} $${c.sym || ''}` : st === 'failed' ? 'failed on-chain, nothing was spent' : 'sent, not confirmed yet');
+      setTimeout(refreshBal, 1500); setTimeout(refreshBal, 6000);
+    } catch (e) { toast(WAL.isReject(e) ? 'cancelled in the wallet' : e.message); }
+    btn.disabled = false; btn.classList.remove('wk');
+  }
+  // ---- one coin: chart, numbers, buy and sell
+  function trOpen(mint) {
+    const c = trFind(mint) || (TR.info && TR.info.mint === mint ? TR.info : { mint, sym: '', name: '' });
+    TR.tk = mint; TR.info = c; TR.side = 'buy'; TR.quote = null; $('#tsAmt').value = TR.amt; $('#tsLog').innerHTML = '';
+    $('#tsChart').innerHTML = `<iframe title="chart" src="https://dexscreener.com/solana/${encodeURIComponent(mint)}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=light&theme=light&chartStyle=1&chartType=usdMcap&interval=1" loading="lazy"></iframe>`;
+    renderTs(); $('#tsheet').classList.add('on'); trInfo(); trQuoteSoon();
+    if (WAL.W.addr && Date.now() - S.balAt > 8000) refreshBal();
+  }
+  async function trInfo() {
+    const m = TR.tk; if (!m) return;
+    try { const j = await api('token', { mint: m }); if (TR.tk !== m) return; const l = trFind(m); TR.info = Object.assign({}, j, l ? { bc: l.bc != null ? l.bc : j.bc, snipe: l.snipe, insider: l.insider, b5: l.b5, s5: l.s5, v5: l.v5, grad: l.grad, pool: l.pool } : {}); TR.infoAt = Date.now(); renderTs(); }
+    catch (e) { if (TR.tk === m && !TR.info.sym) { $('#tsSub').textContent = e.message; } }
+  }
+  function renderTs() {
+    const c = TR.info || {}, m = TR.tk; if (!m) return;
+    $('#tsIc').innerHTML = `${mono(c.sym || '?')}${c.icon ? `<img src="${esc(c.icon)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}`;
+    $('#tsh').textContent = c.name || c.sym || short(m);
+    $('#tsSub').innerHTML = `${c.sym ? '$' + esc(c.sym) + ' · ' : ''}<button class="ca" data-copy="${esc(m)}" title="Copy the contract address">${esc(short(m))} ⧉</button>${c.born ? ' · ' + ago(c.born) + ' old' : ''}`;
+    $('#tsLinks').innerHTML = [`<a href="https://pump.fun/coin/${esc(m)}" target="_blank" rel="noopener">pump.fun ↗</a>`, `<a href="https://dexscreener.com/solana/${esc(m)}" target="_blank" rel="noopener">dexscreener ↗</a>`, `<a href="https://solscan.io/token/${esc(m)}" target="_blank" rel="noopener">solscan ↗</a>`, c.x ? `<a href="${esc(c.x)}" target="_blank" rel="noopener nofollow">𝕏 ↗</a>` : '', c.tg ? `<a href="${esc(c.tg)}" target="_blank" rel="noopener nofollow">telegram ↗</a>` : '', c.web ? `<a href="${esc(c.web)}" target="_blank" rel="noopener nofollow">website ↗</a>` : ''].join('');
+    const stage = c.pool === 'pumpswap' || (c.bc != null && c.bc >= 100) ? 'graduated · PumpSwap' : c.bc != null ? `bonding curve ${c.bc.toFixed(1)}%` : '—';
+    $('#tsStats').innerHTML = [['MCAP', big(c.mcap)], ['LIQUIDITY', big(c.liq)], ['HOLDERS', int(c.holders)], ['STAGE', stage], ['VOL 5M', big(c.v5)], ['BUYS/SELLS 5M', c.b5 != null ? `<b class="up">${c.b5}</b> / <b class="dn">${c.s5}</b>` : '—'], ['TOP 10', pct0(c.top10)], ['DEV HOLDS', pct0(c.dev)], ['SNIPERS', pct0(c.snipe)], ['INSIDERS', pct0(c.insider)]]
+      .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+    renderTsTicket();
+  }
+  function renderTsTicket() {
+    const c = TR.info || {}, buy = TR.side === 'buy', h = held(TR.tk);
+    $$('#tsSide button').forEach(b => b.classList.toggle('on', b.dataset.s === TR.side));
+    $('#tsPayL').textContent = buy ? 'PAY' : 'SELL'; $('#tsTok').textContent = buy ? 'SOL' : (c.sym || 'TOKEN');
+    $('#tsPre').innerHTML = buy ? ['0.05', '0.1', '0.25', '0.5', '1'].map(v => `<button class="kb" data-pre="${v}">${v}</button>`).join('') : [25, 50, 75, 100].map(p => `<button class="kb" data-pct="${p}" ${h ? '' : 'disabled'}>${p}%</button>`).join('');
+    const q = TR.quote, sym = esc(c.sym || 'tokens');
+    const rows = [];
+    if (!buy) rows.push(['YOU HOLD', h ? `${amt(h.amount)} ${sym}${h.value != null ? ' · ' + usd(h.value) : ''}` : WAL.W.addr ? 'none yet' : 'connect a wallet']);
+    rows.push(['YOU GET', TR.quoting ? 'pricing…' : q && !q.error ? `≈ ${amt(q.outUi, buy ? 0 : 4)} ${buy ? sym : 'SOL'}` : q && q.error ? `<span class="dn">${esc(q.error)}</span>` : '—']);
+    if (q && !q.error) { rows.push(['AT LEAST', `${amt(q.minUi, buy ? 0 : 4)} ${buy ? sym : 'SOL'}`]); rows.push(['PRICE IMPACT', `<span class="${q.impact > 0.05 ? 'dn' : ''}">${(q.impact * 100).toFixed(2)}%</span>`]); rows.push(['ROUTE', esc((q.route || []).join(' › ') || 'jupiter')]); }
+    $('#tsDet').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><span>${v}</span></div>`).join('');
+    const go = $('#tsGo'); go.classList.toggle('sell', !buy);
+    go.disabled = TR.busy || (WAL.W.addr && (!q || !!q.error || TR.quoting));
+    go.textContent = !WAL.W.addr ? 'CONNECT WALLET' : TR.busy ? 'WORKING…' : `${buy ? 'BUY' : 'SELL'} ${c.sym ? '$' + c.sym : ''}`.trim();
+  }
+  function trRaw() {
+    const v = parseFloat(($('#tsAmt').value || '').replace(',', '.')); if (!(v > 0)) return null;
+    if (TR.side === 'buy') return BigInt(Math.round(v * 1e9));
+    const h = held(TR.tk), d = h ? h.decimals : 6; let raw = BigInt(Math.floor(v * 10 ** Math.min(d, 9))) * 10n ** BigInt(Math.max(0, d - 9));
+    if (h && raw > BigInt(h.raw)) raw = BigInt(h.raw); return raw > 0n ? raw : null;
+  }
+  let tqT = 0;
+  function trQuoteSoon() { clearTimeout(tqT); TR.quote = null; TR.quoting = trRaw() != null; renderTsTicket(); if (TR.quoting) tqT = setTimeout(trQuote, 350); }
+  async function trQuote() {
+    const raw = trRaw(), m = TR.tk; if (raw == null || !m) { TR.quoting = false; renderTsTicket(); return; }
+    const id = ++TR.qid;
+    try { const q = await api('quote', TR.side === 'buy' ? { in: 'SOL', out: m, amt: raw.toString(), slip: TR.slip } : { in: m, out: 'SOL', amt: raw.toString(), slip: TR.slip }); if (id !== TR.qid) return; TR.quote = q; TR.quote.at = Date.now(); }
+    catch (e) { if (id !== TR.qid) return; TR.quote = { error: e.message }; }
+    TR.quoting = false; renderTsTicket();
+  }
+  $('#tsAmt').addEventListener('input', e => { let v = e.target.value.replace(',', '.').replace(/[^\d.]/g, ''); const i = v.indexOf('.'); if (i >= 0) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, ''); if (v !== e.target.value) e.target.value = v; trQuoteSoon(); });
+  $('#tsSide').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (!b || TR.side === b.dataset.s) return; TR.side = b.dataset.s; $('#tsAmt').value = TR.side === 'buy' ? TR.amt : ''; if (TR.side === 'sell' && WAL.W.addr) refreshBal(); trQuoteSoon(); });
+  $('#tsPre').addEventListener('click', e => {
+    const p = e.target.closest('[data-pre]'); if (p) { $('#tsAmt').value = p.dataset.pre; trQuoteSoon(); return; }
+    const c = e.target.closest('[data-pct]'); if (c && !c.disabled) { const h = held(TR.tk); if (!h) return; const raw = BigInt(h.raw) * BigInt(c.dataset.pct) / 100n; $('#tsAmt').value = String(Number(raw) / 10 ** h.decimals); trQuoteSoon(); }
+  });
+  $('#tsSlip').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b) trSetSlip(+b.dataset.s); });
+  $('#tsSub').addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (!b) return; navigator.clipboard && navigator.clipboard.writeText(b.dataset.copy).then(() => toast('contract address copied'), () => toast(b.dataset.copy)); });
+  $('#tsGo').addEventListener('click', async () => {
+    if (!WAL.W.addr) return openWallet();
+    if (TR.busy) return; const m = TR.tk, c = TR.info || {}, buy = TR.side === 'buy', raw = trRaw(); if (raw == null) return;
+    if (buy && S.bal && S.bal.sol != null && S.bal.sol < Number(raw) / 1e9 + 0.01) { toast('not enough SOL for that'); return; }
+    TR.busy = true; renderTsTicket(); const L = $('#tsLog'); L.innerHTML = '';
+    const say = (h, k) => { const d = document.createElement('div'); if (k) d.className = k; d.innerHTML = h; L.appendChild(d); while (L.children.length > 6) L.firstChild.remove(); return d; };
+    let line = say('pricing it<span class="spin"></span>');
+    try {
+      const { q, sig } = await trSwap(buy ? 'SOL' : m, buy ? m : 'SOL', raw.toString(), h => { line.innerHTML = h.replace('<span class="spin"></span>', ''); line = say(h); });
+      const link = `<a href="https://solscan.io/tx/${esc(sig)}" target="_blank" rel="noopener">${short(sig)} ↗</a>`;
+      line.innerHTML = 'signed · sent ' + link; line = say('waiting for solana<span class="spin"></span>');
+      const st = await waitSig(sig);
+      if (st === 'failed') { line.className = 'err'; line.innerHTML = 'failed on-chain, nothing was swapped ' + link; }
+      else if (st === 'unknown') line.innerHTML = 'not confirmed yet, if it never lands nothing is spent ' + link;
+      else { line.className = 'ok'; line.innerHTML = `${buy ? 'bought' : 'sold'} ${amt(buy ? q.outUi : q.inUi, 0)} $${esc(c.sym || '')} for ${amt(buy ? q.inUi : q.outUi, 4)} SOL ${link}`; toast(`${buy ? 'Bought' : 'Sold'} $${c.sym || ''}`); }
+      setTimeout(refreshBal, 1500); setTimeout(refreshBal, 6000);
+    } catch (e) { line.className = 'err'; line.textContent = WAL.isReject(e) ? 'cancelled in the wallet' : e.message; }
+    TR.busy = false; TR.quote = null; renderTsTicket(); trQuoteSoon();
+  });
+  // while a coin is open: fresh numbers every 5 s, a fresh price every 12 s; closing the sheet stops it all
+  setInterval(() => {
+    if (!TR.tk) return;
+    if (!$('#tsheet').classList.contains('on')) { TR.tk = null; $('#tsChart').innerHTML = ''; if (/^#trench\//.test(location.hash)) history.replaceState(null, '', '#trench'); return; }
+    if (document.hidden) return;
+    if (Date.now() - TR.infoAt > 5000) trInfo();
+    if (!TR.busy && !TR.quoting && TR.quote && !TR.quote.error && Date.now() - (TR.quote.at || 0) > 12000) trQuote();
+  }, 1000);
+  WAL.on(() => { if (TR.tk) renderTsTicket(); });
+  trSetAmt(TR.amt); $$('#trSlip button, #tsSlip button').forEach(b => b.classList.toggle('on', +b.dataset.s === TR.slip));
+
   // ---------------------------------------------------------------- router
   const ind = document.createElement('span'); ind.className = 'tab-ind'; $('#tabs').prepend(ind);
   function placeInd() { const a = $('#tabs a.on'); if (!a) { ind.style.opacity = 0; return; } ind.style.opacity = 1; ind.style.width = a.offsetWidth + 'px'; ind.style.transform = `translateX(${a.offsetLeft}px)`; requestAnimationFrame(() => ind.classList.add('ready')); }
   addEventListener('resize', () => placeInd());
+  if (window.ResizeObserver) new ResizeObserver(() => placeInd()).observe($('#tabs'));
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => placeInd());
   function show(v) {
     S.view = v;
     $$('.view').forEach(n => n.classList.toggle('on', n.id === 'v-' + v));
     $$('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.v === v));
     placeInd();
+    { const t = $('#tabs'), a = $('#tabs a.on'); if (a && t.scrollWidth > t.clientWidth) t.scrollTo({ left: a.offsetLeft - (t.clientWidth - a.offsetWidth) / 2, behavior: still ? 'auto' : 'smooth' }); }
     if (v === 'overview') { renderOverview(); loadOverview(); if (OV.spy) requestAnimationFrame(() => drawCandles(OV.spy, $('#ovChart'), '1D', $('#ovOhlc'), $('#ovChLbl'))); }
     if (v === 'trade') { renderTicket(); requestAnimationFrame(drawChart); }
     if (v === 'markets') renderMarkets();
     if (v === 'portfolio') { renderPortfolio(); if (WAL.W.addr && Date.now() - S.balAt > 8000) refreshBal(); }
     if (v === 'city') { if (S.city) renderCity(); loadCity(); }
     if (v === 'perps') { loadPerps(); loadPerpChart(); loadPositions(); renderPerpTicket(); }
+    if (v === 'trench') { loadTrench(); if (S.bal == null && WAL.W.addr) refreshBal(); }
     if (v === 'docs') { renderDocs(); const id = (location.hash.match(/^#docs\/(\w+)/) || [])[1]; if (id) setTimeout(() => { const h = document.getElementById('doc-' + id); if (h) h.scrollIntoView({ block: 'start' }); }, 30); }
   }
   function route() {
@@ -864,6 +1052,7 @@
     if (v === 'city') return show('city');
     if (v === 'perps') { const k = (a || '').toUpperCase(); if (['SOL', 'BTC', 'ETH'].includes(k)) P2.a = k; return show('perps'); }
     if (v === 'docs') return show('docs');
+    if (v === 'trench' || v === 'trenches') { show('trench'); if (a && B58.test(a)) trOpen(a); else if ($('#tsheet').classList.contains('on')) closeSheets(); return; }
     show('trade');
     if (a && a !== S.sym) { if (S.P) pick(a.toUpperCase(), true); else S.sym = a.toUpperCase(); }
   }

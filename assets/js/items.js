@@ -59,5 +59,19 @@
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     });
   }
-  window.MarketsItems = { ICON, PAL, CAT, tile, png };
+  // the real photo of an item (made once on the server, served from the CDN); the line tile stays underneath as the fallback
+  function photo(it, thumb) { const u = it.img || `/api/m?a=cimg&id=${encodeURIComponent(it.id)}&v=1`; return thumb ? u + '&s=t' : u; }
+  function art(it, size, opt) {
+    return tile(it, size, Object.assign({ r: 0, slice: true }, opt || {})) + (it.id ? `<img class="ph" src="${photo(it)}" alt="" loading="lazy" decoding="async" onload="this.classList.add('on')" onerror="this.remove()">` : '');
+  }
+  // the coin image for a launch: the item's photo cropped square, else the line tile
+  function photoPng(it, size) {
+    return new Promise(ok => {
+      const img = new Image();
+      img.onload = () => { try { const c = document.createElement('canvas'); c.width = c.height = size; const s = Math.min(img.naturalWidth, img.naturalHeight); c.getContext('2d').drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, size, size); ok(c.toDataURL('image/png')); } catch (e) { png(it, size).then(ok, () => ok(null)); } };
+      img.onerror = () => png(it, size).then(ok, () => ok(null));
+      img.src = photo(it);
+    });
+  }
+  window.MarketsItems = { ICON, PAL, CAT, tile, png, photo, art, photoPng };
 })();
