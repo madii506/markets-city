@@ -334,8 +334,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 </main>
 <div class="sr" aria-live="polite" id="live"></div>
 
-<script src="/assets/js/config.js"></script>
-<script src="/assets/js/items.js"></script>
+<script src="/assets/js/config.js?v=20261114b"></script>
+<script src="/assets/js/items.js?v=20261114b"></script>
 <script>
 (function () {
   const $ = s => document.querySelector(s), CFG = window.MARKETS || {};
@@ -372,7 +372,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   function glOk() { try { const c = document.createElement('canvas'); return !!c.getContext('webgl2'); } catch (e) { return false; } }
   function boot() {
     if (reduce || !glOk()) return;
-    import('/assets/js/city3d.js').then(m => {
+    import('/assets/js/city3d.js?v=20261114b').then(m => {
       city = m.startCity($('#cityGL'), { visible: () => heroIn, onFirst: () => $('#cityGL').classList.add('on') });
     }).catch(e => console.warn('city', e));
   }
