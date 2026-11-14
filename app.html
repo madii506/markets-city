@@ -46,7 +46,7 @@ button{background:none;border:0;cursor:pointer}
 /* ---------------- top bar */
 .bar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:22px;padding:0 18px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);position:relative;z-index:5}
 .wm{font-family:Inter,sans-serif;font-style:italic;font-weight:900;font-size:25px;letter-spacing:-.05em;background:var(--dusk);-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:4px}
-.tabs{position:relative;display:flex;gap:4px;justify-self:center;overflow-x:auto;scrollbar-width:none}
+.tabs{position:relative;display:flex;gap:2px;justify-self:stretch;justify-content:safe center;min-width:0;overflow-x:auto;scrollbar-width:none}
 .tab-ind{position:absolute;left:0;top:50%;height:36px;margin-top:-18px;border-radius:10px;background:var(--hi);box-shadow:inset 0 0 0 1px rgba(107,74,158,.12);pointer-events:none;z-index:0}
 .tab-ind.ready{transition:transform .5s cubic-bezier(.2,.8,.2,1),width .5s cubic-bezier(.2,.8,.2,1)}
 .tabs::-webkit-scrollbar{display:none}
@@ -282,7 +282,9 @@ button{background:none;border:0;cursor:pointer}
 .ci:hover{transform:translateY(-3px);box-shadow:0 1px 2px rgba(36,27,69,.05),0 24px 44px -26px rgba(36,27,69,.45)}
 .ci .art{position:relative;aspect-ratio:16/10;overflow:hidden}
 .ci .art svg{position:absolute;inset:0;width:100%;height:100%;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
-.ci:hover .art svg{transform:scale(1.04)}
+.ci .art .ph,.cl-art .ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s,transform .8s cubic-bezier(.2,.8,.2,1)}
+.ci .art .ph.on,.cl-art .ph.on{opacity:1}
+.ci:hover .art svg,.ci:hover .art .ph{transform:scale(1.04)}
 .ci .art .st{position:absolute;left:10px;top:10px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.14em;background:rgba(255,255,255,.92);color:var(--acc)}
 .ci.live .art .st{color:var(--up)}
 .ci .art .cat{position:absolute;right:10px;top:10px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.1em;background:rgba(36,27,69,.42);color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
@@ -298,7 +300,7 @@ button{background:none;border:0;cursor:pointer}
 .ci .open-note{font-size:12px;color:var(--sub);border-top:1px solid var(--line);padding-top:9px;line-height:1.5}
 .sheet-in.wide{width:min(480px,100%)}
 .cl-top{display:flex;gap:14px;align-items:center;margin-bottom:12px}
-.cl-art{width:84px;height:84px;flex:none;border-radius:14px;overflow:hidden}
+.cl-art{position:relative;width:84px;height:84px;flex:none;border-radius:14px;overflow:hidden}
 .cl-art svg{width:84px;height:84px;display:block}
 #csheet .fld,#csheet .det,#csheet .go,#csheet .log{margin-top:12px}
 #csheet .go{width:100%}
@@ -387,6 +389,9 @@ kbd{display:inline-block;padding:1px 6px;border:1px solid var(--line2);border-ra
 .sk-f{display:flex;gap:18px;padding:10px 18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--dim)}
 .sk-f kbd{margin-right:3px}
 @media (max-width:1080px){.skb span,.skb kbd{display:none}.skb{padding:0 10px}}
+@media (max-width:1600px){.st .clk{display:none}.skb span,.skb kbd{display:none}.skb{padding:0 10px}.tabs a{padding:0 11px;letter-spacing:.11em}}
+@media (max-width:1320px){.tabs a i{display:none}.tabs a{padding:0 9px;letter-spacing:.08em}.bar{gap:14px}}
+@media (max-width:1180px){.st .sp{display:none}}
 /* ---------------- overview */
 .ov-h{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
 .ov-state{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px;font-weight:750;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
@@ -465,6 +470,70 @@ kbd{display:inline-block;padding:1px 6px;border:1px solid var(--line2);border-ra
 }
 @media (max-width:760px){.ov-chart .ohlc,.ov-chart #ovChLbl{display:none}.ch .ph{flex-wrap:wrap;height:auto;min-height:42px;padding:8px 12px;row-gap:6px}.ch .ph .r{margin-left:auto}.ohlc{order:5;width:100%;font-size:10.5px;white-space:normal}.rg button{height:28px;padding:0 10px}.bal button{padding:4px 2px}.ov-lists{grid-template-columns:minmax(0,1fr)}.pc{grid-template-columns:minmax(0,1fr)}.pc a{border-right:0;border-bottom:1px solid var(--line)}.docs article{padding:4px 18px 22px}}
 @media (max-width:560px){.qh .nm b{font-size:19px}.qh .px b{font-size:23px}.ps em{display:none}.ch{height:300px}.ov-ix{gap:8px}.ix{padding:12px 12px 8px}.ix .t{font-size:11.5px;gap:6px}.ix .t .lg{display:none}.ix .v{font-size:19px}.ix svg{height:34px}.ov-chart{height:320px}.tabs a{padding:0 11px;letter-spacing:.1em}}
+
+/* the trenches */
+.trp{display:flex;flex-direction:column;overflow:hidden}
+.trp>*{width:100%;max-width:1680px}
+.trp .tools{flex:none}
+.trg{display:flex;align-items:center;gap:8px}
+.trg .seg button{padding:0 10px;text-transform:none}
+.trst{margin-left:auto;font-size:12px}
+.trst .dot{color:var(--up);font-style:normal;animation:blink 1.6s steps(1) infinite;margin-right:2px}
+.trcols{display:none;margin-bottom:12px;width:max-content}
+.trgrid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.tcol{min-height:0}
+.tcol .ph span:not(.r){font-family:var(--mono);letter-spacing:0;color:var(--sub)}
+.tcol .pz{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;padding:2px 7px;border-radius:999px;background:var(--hi);color:var(--acc)}
+.tl{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
+.tc{display:grid;grid-template-columns:54px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s}
+.tc:hover{background:var(--bg2)}
+.tc.nw{animation:tcin .7s cubic-bezier(.2,.8,.2,1)}
+@keyframes tcin{from{opacity:0;transform:translateY(-8px);background:#f3e8f8}}
+.tc .ti{position:relative;width:54px;height:54px;border-radius:13px;overflow:hidden;background:var(--hi);display:grid;place-items:center;font-weight:800;font-size:11px;color:var(--acc)}
+.tc .ti img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tc .tm{min-width:0}
+.tc .t1{display:flex;align-items:center;gap:7px;min-width:0;white-space:nowrap}
+.tc .t1 b{font-weight:800;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tc .t1>span{color:var(--dim);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;max-width:90px}
+.tc .t1 a{flex:none;font-size:10.5px;font-weight:800;color:var(--dim);padding:1px 5px;border:1px solid var(--line2);border-radius:6px;line-height:1.3}
+.tc .t1 a:hover{color:var(--acc);border-color:var(--acc)}
+.tc .t1 em{margin-left:auto;flex:none;font-style:normal;font-family:var(--mono);font-size:11px;color:var(--up)}
+.tc .t2{display:flex;gap:12px;margin-top:4px;font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden}
+.tc .t2 b{color:var(--ink);font-weight:750}
+.tc .t2 b.up{color:var(--up)}.tc .t2 b.dn{color:var(--dn)}
+.tc .t3{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.tc .t3:empty{display:none}
+.tc .t3 span{font-family:var(--mono);font-size:9.5px;padding:1px 6px;border-radius:5px;background:var(--pn2);color:var(--sub)}
+.tc .t3 span.bad{background:#fbe8ee;color:var(--dn)}
+.bcb{height:4px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}
+.bcb i{display:block;height:100%;border-radius:3px;background:var(--dusk);transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.qb{height:34px;padding:0 12px;border-radius:10px;border:1px solid var(--line2);background:#fff;color:var(--acc);font-weight:800;font-size:12px;white-space:nowrap;transition:background .2s,color .2s,border-color .2s}
+.qb:hover{background:var(--dusk);color:#fff;border-color:transparent}
+.qb.wk{opacity:.55;pointer-events:none}
+.tc-open{display:block;width:calc(100% - 20px);margin:10px;padding:12px;border-radius:11px;border:1px dashed var(--acc);color:var(--acc);font-weight:750;text-align:left;background:var(--bg2)}
+.tsw{width:min(940px,100%);max-height:calc(100vh - 32px);overflow:auto}
+.ts-top{display:flex;align-items:center;gap:14px;padding-right:36px}
+.ts-ic{position:relative;width:56px;height:56px;flex:none;border-radius:14px;overflow:hidden;background:var(--hi);display:grid;place-items:center;font-weight:800;color:var(--acc)}
+.ts-ic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ts-nm{min-width:0}.ts-nm h3{margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ts-nm .sub{font-size:12.5px;color:var(--sub)}
+.ts-nm .ca{font-family:var(--mono);font-size:12px;color:var(--acc);padding:0 2px}
+.ts-links{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 14px}
+.ts-links a{font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--sub)}
+.ts-links a:hover{color:var(--acc);border-color:var(--acc)}
+.ts-body{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px}
+.ts-chart{height:300px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--bg2)}
+.ts-chart iframe{width:100%;height:100%;border:0;display:block}
+.ts-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;margin-top:12px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--line)}
+.ts-stats div{display:flex;justify-content:space-between;gap:8px;padding:8px 11px;background:#fff;font-size:12px}
+.ts-stats span{color:var(--dim);font-size:10px;font-weight:750;letter-spacing:.12em}
+.ts-stats b{font-weight:750;white-space:nowrap}
+.ts-r{display:flex;flex-direction:column;gap:10px}
+.tsp{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:6px}
+.tsp .kb{height:32px;padding:0 6px;font-size:12px}
+.tsn{font-size:11.5px;color:var(--dim);line-height:1.5;margin:0}
+@media (max-width:1100px){.trgrid{grid-template-columns:1fr}.tcol{display:none}.tcol.on{display:flex}.trcols{display:flex}}
+@media (max-width:760px){.trp{overflow:auto}.trgrid{flex:none}.tl{max-height:none;overflow:visible}.trst{margin-left:0}.ts-body{grid-template-columns:1fr}.ts-chart{height:260px}.tc{grid-template-columns:46px minmax(0,1fr) auto;padding:10px 12px}.tc .ti{width:46px;height:46px}}
 </style>
 </head>
 <body>
@@ -477,8 +546,9 @@ kbd{display:inline-block;padding:1px 6px;border:1px solid var(--line2);border-ra
       <a href="#markets" data-v="markets"><i>3</i>stocks</a>
       <a href="#city" data-v="city"><i>4</i>city</a>
       <a href="#perps" data-v="perps"><i>5</i>perps</a>
-      <a href="#portfolio" data-v="portfolio"><i>6</i>portfolio</a>
-      <a href="#docs" data-v="docs"><i>7</i>docs</a>
+      <a href="#trench" data-v="trench"><i>6</i>trenches</a>
+      <a href="#portfolio" data-v="portfolio"><i>7</i>portfolio</a>
+      <a href="#docs" data-v="docs"><i>8</i>docs</a>
     </nav>
     <div class="st"><button class="skb" id="skBtn" aria-label="Search (Ctrl+K)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>Search</span><kbd>Ctrl K</kbd></button><span class="live" id="live"><i>●</i> LIVE</span><span class="clk" id="clock">--:--:-- UTC</span><span class="sp" id="solp">SOL —</span><span id="wslot"><button class="kb hot" data-connect>Connect wallet</button></span></div>
   </header>
@@ -487,7 +557,7 @@ kbd{display:inline-block;padding:1px 6px;border:1px solid var(--line2);border-ra
     <label class="ps" for="cmd">markets@city<em>:~</em>$</label>
     <input id="cmd" autocomplete="off" spellcheck="false" placeholder="type a command: buy nvda 0.5 sol · sell tsla all · chart aapl 1m · help">
     <span class="out" id="cmdOut"></span>
-    <span class="hint"><b>/</b> command · <b>1–7</b> pages · <b>↑↓</b> watchlist</span>
+    <span class="hint"><b>/</b> command · <b>1–8</b> pages · <b>↑↓</b> watchlist</span>
   </div>
 
   <div class="tape" aria-label="Live prices"><div class="tape-in" id="tape"></div></div>
@@ -615,6 +685,24 @@ kbd{display:inline-block;padding:1px 6px;border:1px solid var(--line2);border-ra
     </section>
 
     <!-- 6 docs -->
+    <!-- 6 trenches -->
+    <section class="view" id="v-trench"><div class="page trp">
+      <h1>The trenches</h1>
+      <div class="lead">Fresh pump.fun coins, live: just launched, in the final stretch of the bonding curve, and just graduated. Buy any of them in one click from your own wallet. Most go to zero, so only trade what you can lose.</div>
+      <div class="tools">
+        <input id="trq" placeholder="Search a name or ticker, or paste a contract address" autocomplete="off" spellcheck="false" aria-label="Search the trenches">
+        <div class="trg"><span class="lbl">quick buy</span><div class="seg" id="trAmt"><button data-a="0.05">0.05</button><button data-a="0.1">0.1</button><button data-a="0.25">0.25</button><button data-a="0.5">0.5</button><button data-a="1">1</button></div><span class="lbl">sol</span></div>
+        <div class="trg"><span class="lbl">slippage</span><div class="seg" id="trSlip"><button data-s="500">5%</button><button data-s="1000">10%</button><button data-s="2000">20%</button></div></div>
+        <span class="mute trst" id="trSt">connecting…</span>
+      </div>
+      <div class="seg trcols" id="trCol"><button class="on" data-c="fresh">new</button><button data-c="soon">final stretch</button><button data-c="done">graduated</button></div>
+      <div class="trgrid" id="trGrid">
+        <div class="pn tcol on" data-col="fresh"><div class="ph"><b>New</b><span id="trn-fresh"></span><span class="r"><span class="pz" id="trp-fresh" hidden>paused</span></span></div><div class="tl" id="trl-fresh"><div class="empty">loading the trenches…</div></div></div>
+        <div class="pn tcol" data-col="soon"><div class="ph"><b>Final stretch</b><span id="trn-soon"></span><span class="r"><span class="pz" id="trp-soon" hidden>paused</span></span></div><div class="tl" id="trl-soon"><div class="empty">loading…</div></div></div>
+        <div class="pn tcol" data-col="done"><div class="ph"><b>Graduated</b><span id="trn-done"></span><span class="r"><span class="pz" id="trp-done" hidden>paused</span></span></div><div class="tl" id="trl-done"><div class="empty">loading…</div></div></div>
+      </div>
+    </div></section>
+
     <section class="view" id="v-docs"><div class="page docs" id="docsBody"></div></section>
 
     <!-- 4 portfolio -->
@@ -636,6 +724,24 @@ kbd{display:inline-block;padding:1px 6px;border:1px solid var(--line2);border-ra
   <div class="det" id="clDet"></div>
   <button class="go" id="clGo">CLAIM</button>
   <div class="log" id="clLog" aria-live="polite"></div>
+</div></div>
+<div class="sheet" id="tsheet" role="dialog" aria-modal="true" aria-labelledby="tsh"><div class="sheet-in tsw">
+  <button class="x" data-close aria-label="Close">×</button>
+  <div class="ts-top"><div class="ts-ic" id="tsIc"></div><div class="ts-nm"><h3 id="tsh">—</h3><div class="sub" id="tsSub"></div></div></div>
+  <div class="ts-links" id="tsLinks"></div>
+  <div class="ts-body">
+    <div class="ts-l"><div class="ts-chart" id="tsChart"></div><div class="ts-stats" id="tsStats"></div></div>
+    <div class="ts-r">
+      <div class="side2" id="tsSide"><button class="b on" data-s="buy">BUY</button><button class="s" data-s="sell">SELL</button></div>
+      <div class="fld"><span class="lbl" id="tsPayL">PAY</span><input id="tsAmt" inputmode="decimal" placeholder="0.00" autocomplete="off" aria-label="Amount"><span class="tok" id="tsTok">SOL</span></div>
+      <div class="tsp" id="tsPre"></div>
+      <div class="trg"><span class="lbl">slippage</span><div class="seg" id="tsSlip"><button data-s="500">5%</button><button data-s="1000">10%</button><button data-s="2000">20%</button></div></div>
+      <div class="det" id="tsDet"></div>
+      <button class="go" id="tsGo">BUY</button>
+      <div class="log" id="tsLog" aria-live="polite"></div>
+      <p class="tsn">Routed by Jupiter through the pump.fun curve or PumpSwap, signed in your own wallet. No fee from markets.</p>
+    </div>
+  </div>
 </div></div>
 <div class="sk" id="sk" role="dialog" aria-modal="true" aria-label="Search"><div class="sk-in">
   <label class="sk-q"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="skq" placeholder="Search stocks, city assets, perps, pages" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></label>
