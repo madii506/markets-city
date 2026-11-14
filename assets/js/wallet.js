@@ -77,5 +77,25 @@
   const friendly = e => { const m = String((e && (e.message || e.toString())) || 'the wallet could not send it'); if (/insufficient|0x1\b|lamports/i.test(m)) return 'not enough SOL for this trade and its fees'; if (/blockhash|expired/i.test(m)) return 'the quote expired, try again'; if (/slippage|0x1771|6001/i.test(m)) return 'the price moved past your slippage, try again'; return m.slice(0, 160); };
   const isReject = e => e && (e.code === 4001 || /reject|cancel|denied|declined/i.test(e.message || ''));
 
-  window.MarketsWallet = { WALLETS, W, connect, disconnect, restore, signAndSend, isReject, on: f => { subs.add(f); return () => subs.delete(f); }, installed: () => WALLETS.filter(w => w.get()), mobile };
+  // a pump.fun launch needs two signatures: the founder's wallet and the new coin's mint key (made in this browser, never sent anywhere)
+  async function signLaunch(txB64, mintKp) {
+    if (!W.p) throw new Error('connect a wallet first');
+    if (!W.p.signTransaction) throw new Error('this wallet cannot sign a launch, try Phantom or Solflare');
+    const S = await web3();
+    const tx = S.VersionedTransaction.deserialize(b64(txB64));
+    let signed;
+    try { signed = await W.p.signTransaction(tx); } catch (e) { if (isReject(e)) throw new Error('you cancelled in your wallet'); throw new Error(friendly(e)); }
+    signed.sign([mintKp]);
+    return toB64(signed.serialize());
+  }
+  // sign only (perps: Jupiter's execute endpoint sends it together with its keeper)
+  async function signOnly(txB64) {
+    if (!W.p) throw new Error('connect a wallet first');
+    if (!W.p.signTransaction) throw new Error('this wallet cannot sign this order, try Phantom or Solflare');
+    const S = await web3();
+    const tx = S.VersionedTransaction.deserialize(b64(txB64));
+    try { const signed = await W.p.signTransaction(tx); return toB64(signed.serialize()); }
+    catch (e) { if (isReject(e)) throw new Error('you cancelled in your wallet'); throw new Error(friendly(e)); }
+  }
+  window.MarketsWallet = { WALLETS, W, connect, disconnect, restore, signAndSend, signLaunch, signOnly, web3, isReject, on: f => { subs.add(f); return () => subs.delete(f); }, installed: () => WALLETS.filter(w => w.get()), mobile };
 })();
