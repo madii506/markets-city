@@ -16,7 +16,7 @@ const USDC_ICON = 'https://raw.githubusercontent.com/solana-labs/token-list/main
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const CITY = require('./city.json');
 const CITY_BY_ID = Object.fromEntries(CITY.map(c => [c.id, c]));
-const SITE = (process.env.SITE_URL || 'https://markets-city.vercel.app').replace(/\/$/, '');
+const SITE = (process.env.SITE_URL || 'https://bukz-city.vercel.app').replace(/\/$/, '');
 
 const out = (res, code, body, cache) => { res.statusCode = code; res.setHeader('content-type', 'application/json'); res.setHeader('cache-control', cache || 'no-store'); res.end(JSON.stringify(body)); };
 const body = req => new Promise(ok => { if (req.body) return ok(typeof req.body === 'string' ? safeJSON(req.body) : req.body); let d = ''; req.on('data', c => { d += c; if (d.length > 2e6) req.destroy(); }); req.on('end', () => ok(safeJSON(d))); });
