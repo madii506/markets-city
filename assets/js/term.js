@@ -92,7 +92,7 @@
         hit = true; ALR.splice(i, 1);
         const msg = `${a.sym} ${a.up ? 'rose to' : 'fell to'} ${usd(v)} (your alert: ${usd(a.px)})`;
         toast('🔔 ' + msg);
-        try { if ('Notification' in window && Notification.permission === 'granted') new Notification('Bukz price alert', { body: msg, icon: '/assets/img/fav-192.png', tag: 'bukz-' + a.sym }); } catch { }
+        try { if ('Notification' in window && Notification.permission === 'granted') new Notification('Bukz price alert', { body: msg, icon: '/assets/img/bukz-192.png', tag: 'bukz-' + a.sym }); } catch { }
       }
     }
     if (hit) { saveAlr(); renderAlr(); }
@@ -443,7 +443,7 @@
   // ---------------------------------------------------------------- portfolio
   function renderPortfolio() {
     const pf = $('#pf');
-    if (!WAL.W.addr) { pf.innerHTML = `<h1>Portfolio</h1><div class="lead">Your empire, priced live from the chain.</div><div class="pn" style="padding:22px"><div class="mute">No wallet connected.</div><div style="margin-top:12px"><button class="kb hot" data-connect>Connect wallet</button></div></div>`; return; }
+    if (!WAL.W.addr) { pf.innerHTML = `<h1>Portfolio</h1><div class="lead">Your empire, priced live from the chain.</div><div class="pf-empty"><i class="s1"></i><i class="s2"></i><b>Connect a wallet to see your bag.</b><p>Your stocks, cash, perps positions, trench bags and city coins, priced live, with a picture of your bag to share. Phantom, Solflare or Backpack. Your keys never leave your wallet.</p><button class="kb hot" data-connect>Connect wallet</button></div>`; return; }
     if (!S.bal) { pf.innerHTML = `<h1>Portfolio</h1><div class="lead">${S.balErr ? 'Could not read the wallet: ' + esc(S.balErr) : 'Reading your wallet<span class="spin"></span>'}</div>`; return; }
     const T = totals(), B = S.bal;
     const seg = (v, c) => T.tot > 0 && v > 0 ? `<i style="width:${(v / T.tot * 100).toFixed(2)}%;background:${c}"></i>` : '';
