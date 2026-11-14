@@ -29,12 +29,5 @@
         }
       ]
     }
-  ],
-  "redirects": [
-    {
-      "source": "/app",
-      "destination": "/",
-      "permanent": false
-    }
   ]
 }
