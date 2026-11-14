@@ -100,7 +100,7 @@ async function cityList() {
     const items = CITY.map(c => {
       const r = by[c.id], status = !r ? 'open' : r.status === 'live' ? 'live' : isOpenRow(r) ? 'open' : 'pending';
       const t = (status === 'live' && info[r.mint]) || {}, st = t.stats24h || {};
-      return { id: c.id, name: c.name, sym: c.sym, cat: c.cat, icon: c.icon, line: c.line, status,
+      return { id: c.id, name: c.name, sym: c.sym, cat: c.cat, icon: c.icon, line: c.line, img: photoUrl(c), status,
         mint: status === 'open' ? null : r.mint, founder: status === 'open' ? null : r.founder, sig: status === 'live' ? r.sig || null : null, since: status === 'live' ? r.t : null,
         logo: t.icon || null, usd: t.usdPrice != null ? t.usdPrice : null, mcap: t.mcap != null ? t.mcap : (t.fdv != null ? t.fdv : null), liq: t.liquidity != null ? t.liquidity : null,
         ch24: st.priceChange != null ? st.priceChange : null, holders: t.holderCount != null ? t.holderCount : null,
@@ -209,6 +209,7 @@ async function mintOf(x) {
   if (x === 'SOL') return SOL; if (x === 'USDC') return USDC;
   if (BY_SYM[x]) return BY_SYM[x].mint;
   if (BY_MINT[x] || x === SOL || x === USDC) return x;
+  if (B58.test(x)) return x;                         // any other Solana token (the trenches): Jupiter decides if it routes
   const c = (await cityLive()).find(i => i.sym === x || i.mint === x);
   if (c) return c.mint;
   fail('that market is not listed here');
@@ -221,7 +222,8 @@ async function quote(q) {
   if (!(CASH.has(inM) || CASH.has(outM))) fail('trade against SOL or USDC');
   const amt = String(q.get('amt') || '');
   if (!/^\d{1,20}$/.test(amt) || BigInt(amt) <= 0n) fail('enter an amount above zero');
-  const slip = Math.min(500, Math.max(10, parseInt(q.get('slip') || '100', 10) || 100));
+  const listed = m => m === SOL || m === USDC || !!BY_MINT[m];
+  const slip = Math.min(listed(inM) && listed(outM) ? 500 : 3000, Math.max(10, parseInt(q.get('slip') || '100', 10) || 100));
   let j;
   try { j = await getJ(`${JUP}/swap/v1/quote?inputMint=${inM}&outputMint=${outM}&amount=${amt}&slippageBps=${slip}&restrictIntermediateTokens=true`); }
   catch (e) { const m = String(e.message || ''); if (/NO_ROUTE|COULD_NOT_FIND|No routes/i.test(m)) fail('no route for that trade right now, try a smaller amount'); if (/too small|AMOUNT/i.test(m)) fail('that amount is too small to route'); throw e; }
@@ -431,6 +433,97 @@ async function perpExec(b) {
   return { sig: j.txid };
 }
 
+// ---------------------------------------------------------------- city photos: one real photo per item, made once by FLUX through
+// Vercel's AI Gateway, kept in Postgres and served from the CDN for a year. The line icon stays as the fallback.
+const LOOK = ' Photorealistic professional photograph, 35mm lens, dusk with soft pastel pink, peach and lavender light, warm glowing lamps, calm and clean, rich detail, the subject centred with space around it. No people. No text, no letters, no words on signs, no logos, no brand badges, no watermark.';
+let OIDC = null;
+const gwToken = () => process.env.AI_GATEWAY_API_KEY || OIDC || process.env.VERCEL_OIDC_TOKEN || null;
+let imgReady = null;
+async function imgDb() {
+  const q = db(); if (!q) return null;
+  if (!imgReady) imgReady = q`create table if not exists mk_img (k text primary key, mime text not null, b64 text not null, t timestamptz default now())`.then(() => q).catch(e => { imgReady = null; throw e; });
+  return imgReady;
+}
+async function flux(prompt) {
+  const token = gwToken(); if (!token) throw new Error('the image model is not connected');
+  const r = await fetch('https://ai-gateway.vercel.sh/v1/images/generations', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+    body: JSON.stringify({ model: 'bfl/flux-2-pro', prompt, n: 1, response_format: 'b64_json', providerOptions: { blackForestLabs: { outputFormat: 'jpeg', safetyTolerance: 2 } } }), signal: AbortSignal.timeout(50000) });
+  const j = await r.json().catch(() => null), d = j && j.data && j.data[0];
+  if (!d || !d.b64_json) throw new Error('image model: ' + String((j && j.error && (j.error.message || j.error.type)) || r.status).slice(0, 160));
+  return Buffer.from(d.b64_json, 'base64');
+}
+async function fit(buf, w, qual) { try { const sharp = require('sharp'); return await sharp(buf).resize(w, w, { fit: 'cover' }).jpeg({ quality: qual, mozjpeg: true }).toBuffer(); } catch { return buf; } }
+function photoUrl(c) { return `/api/m?a=cimg&id=${c.id}&v=${c.v || 1}`; }
+async function cityPhoto(q, res) {
+  const c = CITY_BY_ID[String(q.get('id') || '')]; if (!c || !c.shot) fail('unknown item');
+  const s = q.get('s') === 't' ? 't' : 'm', v = String(c.v || 1);
+  if (q.get('v') !== v) { res.statusCode = 302; res.setHeader('location', photoUrl(c) + '&s=' + s); res.setHeader('cache-control', 'public, s-maxage=300'); return res.end(); }
+  const D = await imgDb(); if (!D) fail('the photo store is not connected');
+  const key = x => `city:${c.id}:${v}:${x}`;
+  const send = (b64, mime) => { const buf = Buffer.from(b64, 'base64'); res.statusCode = 200; res.setHeader('content-type', mime || 'image/jpeg'); res.setHeader('cache-control', 'public, max-age=604800, s-maxage=31536000, immutable'); return res.end(buf); };
+  const [have] = await D`select mime, b64 from mk_img where k = ${key(s)}`;
+  if (have) return send(have.b64, have.mime);
+  // one maker per photo at a time; a maker that died frees its lock after 90 seconds
+  const lock = await D`insert into mk_img (k, mime, b64) values (${key('lock')}, 'lock', '') on conflict (k) do update set t = now() where mk_img.t < now() - interval '90 seconds' returning k`;
+  if (!lock.length) { res.statusCode = 503; res.setHeader('retry-after', '15'); res.setHeader('cache-control', 'no-store'); return res.end(); }
+  try {
+    const raw = await flux(c.shot + LOOK);
+    const [m, t] = await Promise.all([fit(raw, 768, 80), fit(raw, 160, 78)]);
+    await D`insert into mk_img (k, mime, b64) values (${key('m')}, 'image/jpeg', ${m.toString('base64')}), (${key('t')}, 'image/jpeg', ${t.toString('base64')}) on conflict (k) do update set b64 = excluded.b64, mime = excluded.mime, t = now()`;
+    return send((s === 't' ? t : m).toString('base64'), 'image/jpeg');
+  } finally { await D`delete from mk_img where k = ${key('lock')}`.catch(() => { }); }
+}
+
+// ---------------------------------------------------------------- the trenches: pump.fun coins as they launch, near graduation and just
+// graduated (Jupiter's live pool data, pump.fun's own lists as the fallback). Any of them trades through Jupiter.
+const n0 = x => x == null || x === '' || !isFinite(+x) ? null : +x;
+const link = u => typeof u === 'string' && /^https?:\/\/[^\s"'<>]{3,200}$/.test(u) ? u : null;
+function trJup(p) {
+  const b = p.baseAsset || {}; if (!b.id) return null;
+  const s5 = b.stats5m || {}, s1 = b.stats1h || {}, a = b.audit || {};
+  return { mint: b.id, name: String(b.name || '').slice(0, 40), sym: String(b.symbol || '').slice(0, 16), icon: link(b.icon),
+    born: Date.parse(b.createdAt || p.createdAt) || null, mcap: n0(b.mcap != null ? b.mcap : b.fdv), liq: n0(b.liquidity != null ? b.liquidity : p.liquidity), usd: n0(b.usdPrice),
+    holders: n0(b.holderCount), bc: n0(p.bondingCurve), pool: p.dex === 'swap.pump.fun' ? 'pumpswap' : 'curve', grad: p.dex === 'swap.pump.fun' ? (Date.parse(p.createdAt) || null) : null,
+    v5: (n0(s5.buyVolume) || 0) + (n0(s5.sellVolume) || 0), v1: (n0(s1.buyVolume) || 0) + (n0(s1.sellVolume) || 0), b5: n0(s5.numBuys) || 0, s5: n0(s5.numSells) || 0, ch5: n0(s5.priceChange), ch1: n0(s1.priceChange),
+    top10: n0(a.topHoldersPercentage), dev: n0(a.devBalancePercentage), snipe: n0(a.sniperPct), insider: n0(a.insiderPct),
+    x: link(b.twitter), web: link(b.website), tg: link(b.telegram) };
+}
+const wsrv = u => u && /^https:\/\/ipfs\.io\/ipfs\//.test(u) ? 'https://wsrv.nl/?w=96&h=96&fit=cover&url=' + encodeURIComponent(u) : link(u);
+function trPump(c) {
+  if (!c || !c.mint || c.nsfw || c.is_banned) return null;
+  return { mint: c.mint, name: String(c.name || '').slice(0, 40), sym: String(c.symbol || '').slice(0, 16), icon: wsrv(c.image_uri), born: n0(c.created_timestamp),
+    mcap: n0(c.usd_market_cap != null ? c.usd_market_cap : c.market_cap_usd), liq: null, usd: null, holders: null, bc: null, pool: c.complete ? 'pumpswap' : 'curve', grad: null,
+    v5: null, v1: null, b5: null, s5: null, ch5: null, ch1: null, top10: null, dev: null, snipe: null, insider: null, x: link(c.twitter), web: link(c.website), tg: link(c.telegram) };
+}
+// one coin by its address (the trenches' coin sheet): Jupiter's token data
+async function tokenInfo(mint) {
+  mint = String(mint || ''); if (!B58.test(mint)) fail('bad token address');
+  const t = (await jupTokens([mint]))[mint]; if (!t) fail('that coin is not indexed yet, try again in a few seconds');
+  const s5 = t.stats5m || {}, a = t.audit || {};
+  return { mint, name: String(t.name || '').slice(0, 40), sym: String(t.symbol || '').slice(0, 16), icon: link(t.icon), born: Date.parse(t.createdAt) || null,
+    mcap: n0(t.mcap != null ? t.mcap : t.fdv), liq: n0(t.liquidity), usd: n0(t.usdPrice), holders: n0(t.holderCount), bc: n0(t.bondingCurve), launchpad: t.launchpad || null,
+    v5: (n0(s5.buyVolume) || 0) + (n0(s5.sellVolume) || 0), b5: n0(s5.numBuys), s5: n0(s5.numSells), top10: n0(a.topHoldersPercentage), dev: n0(a.devBalancePercentage),
+    snipe: n0(a.sniperPct), insider: n0(a.insiderPct), x: link(t.twitter), web: link(t.website), tg: link(t.telegram), t: Date.now() };
+}
+async function trench() {
+  return memo('trench', 2500, async () => {
+    const pads = { timeframe: '24h', launchpads: ['pump.fun'] };
+    try {
+      const j = await getJ('https://datapi.jup.ag/v1/pools/gems', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ recent: pads, aboutToGraduate: pads, graduated: pads }) }, 8000);
+      const L = k => ((j && j[k] && j[k].pools) || []).map(trJup).filter(Boolean);
+      const o = { src: 'jupiter', fresh: L('recent'), soon: L('aboutToGraduate'), done: L('graduated'), t: Date.now() };
+      if (o.fresh.length + o.soon.length + o.done.length) return o;
+      throw new Error('empty');
+    } catch (e) {
+      const P = 'https://frontend-api-v3.pump.fun/coins?offset=0&limit=40&includeNsfw=false';
+      const get = u => getJ(u, { headers: { accept: 'application/json', origin: 'https://pump.fun', referer: 'https://pump.fun/' } }, 8000).then(r => (Array.isArray(r) ? r : []).map(trPump).filter(Boolean)).catch(() => []);
+      const [fresh, soon, done] = await Promise.all([get(P + '&sort=created_timestamp&order=DESC'), get(P + '&sort=market_cap&order=DESC&complete=false'), get(P + '&sort=last_trade_timestamp&order=DESC&complete=true')]);
+      if (!fresh.length && !soon.length && !done.length) throw new Error('the pump.fun feed is not answering, it retries in a few seconds');
+      return { src: 'pump.fun', fresh, soon, done, t: Date.now() };
+    }
+  });
+}
+
 // one-day sparklines for a handful of stocks at once (homepage cards)
 async function sparks(list) {
   const syms = String(list || '').split(',').filter(x => BY_SYM[x]).slice(0, 16);
@@ -442,6 +535,7 @@ async function sparks(list) {
 module.exports = async (req, res) => {
   res.setHeader('access-control-allow-origin', '*');
   const q = new URL(req.url, 'http://x').searchParams, a = q.get('a');
+  const oidc = req.headers && req.headers['x-vercel-oidc-token']; if (oidc) OIDC = oidc;
   try {
     if (a === 'prices') return out(res, 200, await prices(), 'public, s-maxage=15, stale-while-revalidate=45');
     if (a === 'quote') return out(res, 200, await quote(q));
@@ -459,6 +553,9 @@ module.exports = async (req, res) => {
     if (a === 'pclose' && req.method === 'POST') return out(res, 200, await perpClose(await body(req)));
     if (a === 'pexec' && req.method === 'POST') return out(res, 200, await perpExec(await body(req)));
     if (a === 'city') return out(res, 200, await cityList(), 'public, s-maxage=8, stale-while-revalidate=30');
+    if (a === 'cimg') return await cityPhoto(q, res);
+    if (a === 'trench') return out(res, 200, await trench(), 'public, s-maxage=2, stale-while-revalidate=8');
+    if (a === 'token') return out(res, 200, await tokenInfo(q.get('mint')), 'public, s-maxage=4, stale-while-revalidate=10');
     if (a === 'claim' && req.method === 'POST') return out(res, 200, await claim(await body(req)));
     if (a === 'confirm' && req.method === 'POST') return out(res, 200, await confirmClaim(await body(req)));
     return out(res, 404, { error: 'unknown action' });

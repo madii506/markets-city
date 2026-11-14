@@ -1,26 +1,218 @@
 [
-  {"id":"grand","name":"Sunset Grand Hotel","sym":"GRAND","cat":"estate","icon":"hotel","line":"A pastel tower on the beach. Rooftop bar, 300 rooms, always booked."},
-  {"id":"penthouse","name":"Skyline Penthouse","sym":"PENT","cat":"estate","icon":"penthouse","line":"The top floor of the tallest tower in the city."},
-  {"id":"coralkey","name":"Coral Key","sym":"KEY","cat":"estate","icon":"island","line":"A private island ten minutes off the coast."},
-  {"id":"mansion","name":"Hilltop Mansion","sym":"MANSION","cat":"estate","icon":"mansion","line":"Twelve bedrooms and one view: the whole city."},
-  {"id":"marina","name":"Marina Docks","sym":"DOCKS","cat":"estate","icon":"marina","line":"Forty berths. Every yacht in town parks here."},
-  {"id":"motel","name":"Starlight Motel","sym":"MOTEL","cat":"estate","icon":"motel","line":"Neon sign, a pool, no questions asked."},
-  {"id":"lofts","name":"Warehouse Lofts","sym":"LOFT","cat":"estate","icon":"lofts","line":"An old warehouse full of new money."},
-  {"id":"pier","name":"Boardwalk Pier","sym":"PIER","cat":"estate","icon":"pier","line":"A ferris wheel and the best sunsets in town."},
-  {"id":"club","name":"Afterglow Nightclub","sym":"CLUB","cat":"biz","icon":"club","line":"Doors open at midnight. The line goes round the block."},
-  {"id":"bar","name":"Last Call Bar","sym":"BAR","cat":"biz","icon":"bar","line":"Every deal in the city closes here."},
-  {"id":"wash","name":"Shine Car Wash","sym":"WASH","cat":"biz","icon":"wash","line":"Every car in the city gets cleaned here. Every car."},
-  {"id":"diner","name":"Midnight Diner","sym":"DINER","cat":"biz","icon":"diner","line":"Open 24 hours. Pancakes, coffee and gossip."},
-  {"id":"arcade","name":"Neon Arcade","sym":"ARCADE","cat":"biz","icon":"arcade","line":"High scores and higher rollers."},
-  {"id":"tattoo","name":"Anchor Tattoo","sym":"INK","cat":"biz","icon":"tattoo","line":"Walk-ins welcome. Regrets not refunded."},
-  {"id":"pawn","name":"Three Ball Pawn","sym":"PAWN","cat":"biz","icon":"pawn","line":"We buy anything. We ask nothing."},
-  {"id":"taco","name":"Late Night Tacos","sym":"TACO","cat":"biz","icon":"taco","line":"Parked outside the club at 3 AM. Always."},
-  {"id":"gt","name":"Nightfall GT","sym":"GT","cat":"ride","icon":"supercar","line":"A V12 supercar. Zero to sixty before you blink."},
-  {"id":"muscle","name":"Thunder Muscle","sym":"MUSCLE","cat":"ride","icon":"muscle","line":"Loud, fast, and pulled over a lot."},
-  {"id":"bike","name":"Street Bike","sym":"BIKE","cat":"ride","icon":"bike","line":"Splits lanes. Splits the bill."},
-  {"id":"limo","name":"Stretch Limo","sym":"LIMO","cat":"ride","icon":"limo","line":"Arrive like the client."},
-  {"id":"boat","name":"Offshore Speedboat","sym":"BOAT","cat":"ride","icon":"boat","line":"Twin engines and no brakes."},
-  {"id":"yacht","name":"Superyacht","sym":"YACHT","cat":"ride","icon":"yacht","line":"Helipad, hot tub, crew of twenty."},
-  {"id":"jet","name":"Private Jet","sym":"JET","cat":"ride","icon":"jet","line":"Wheels up whenever you say."},
-  {"id":"heli","name":"City Helicopter","sym":"HELI","cat":"ride","icon":"heli","line":"Skip traffic. Forever."}
+ {
+  "id": "grand",
+  "name": "Sunset Grand Hotel",
+  "sym": "GRAND",
+  "cat": "estate",
+  "icon": "hotel",
+  "line": "A pastel tower on the beach. Rooftop bar, 300 rooms, always booked.",
+  "shot": "A pastel pink art deco beach hotel tower with a glowing rooftop bar, palm trees and a quiet beach promenade in front of it."
+ },
+ {
+  "id": "penthouse",
+  "name": "Skyline Penthouse",
+  "sym": "PENT",
+  "cat": "estate",
+  "icon": "penthouse",
+  "line": "The top floor of the tallest tower in the city.",
+  "shot": "A luxury glass penthouse terrace with an infinity pool and lounge chairs on top of a skyscraper, a bay skyline far below."
+ },
+ {
+  "id": "coralkey",
+  "name": "Coral Key",
+  "sym": "KEY",
+  "cat": "estate",
+  "icon": "island",
+  "line": "A private island ten minutes off the coast.",
+  "shot": "Aerial view of a small private tropical island with one modern white villa, palm trees, white sand and turquoise water around it."
+ },
+ {
+  "id": "mansion",
+  "name": "Hilltop Mansion",
+  "sym": "MANSION",
+  "cat": "estate",
+  "icon": "mansion",
+  "line": "Twelve bedrooms and one view: the whole city.",
+  "shot": "A modern hilltop mansion with floor-to-ceiling glass walls and a lit infinity pool, the city lights far below."
+ },
+ {
+  "id": "marina",
+  "name": "Marina Docks",
+  "sym": "DOCKS",
+  "cat": "estate",
+  "icon": "marina",
+  "line": "Forty berths. Every yacht in town parks here.",
+  "shot": "A marina full of white yachts moored at wooden docks, harbour lamps reflecting on calm water."
+ },
+ {
+  "id": "motel",
+  "name": "Starlight Motel",
+  "sym": "MOTEL",
+  "cat": "estate",
+  "icon": "motel",
+  "line": "Neon sign, a pool, no questions asked.",
+  "shot": "A retro roadside motel with a glowing neon star on a tall pole, a turquoise pool and palm trees."
+ },
+ {
+  "id": "lofts",
+  "name": "Warehouse Lofts",
+  "sym": "LOFT",
+  "cat": "estate",
+  "icon": "lofts",
+  "line": "An old warehouse full of new money.",
+  "shot": "Converted red brick warehouse lofts with tall industrial windows glowing warm over a quiet cobbled street."
+ },
+ {
+  "id": "pier",
+  "name": "Boardwalk Pier",
+  "sym": "PIER",
+  "cat": "estate",
+  "icon": "pier",
+  "line": "A ferris wheel and the best sunsets in town.",
+  "shot": "A boardwalk pier over the ocean with a lit ferris wheel and small amusement rides, lights reflecting on the water."
+ },
+ {
+  "id": "club",
+  "name": "Afterglow Nightclub",
+  "sym": "CLUB",
+  "cat": "biz",
+  "icon": "club",
+  "line": "Doors open at midnight. The line goes round the block.",
+  "shot": "The entrance of an upscale nightclub glowing with pink and violet neon light, a velvet rope, reflections on the wet street."
+ },
+ {
+  "id": "bar",
+  "name": "Last Call Bar",
+  "sym": "BAR",
+  "cat": "biz",
+  "icon": "bar",
+  "line": "Every deal in the city closes here.",
+  "shot": "Inside a moody cocktail bar: backlit bottle shelves, a polished brass bar top and one pink cocktail in a coupe glass."
+ },
+ {
+  "id": "wash",
+  "name": "Shine Car Wash",
+  "sym": "WASH",
+  "cat": "biz",
+  "icon": "wash",
+  "line": "Every car in the city gets cleaned here. Every car.",
+  "shot": "A modern drive-through car wash tunnel with colourful foam brushes and neon light, a glossy dark car inside."
+ },
+ {
+  "id": "diner",
+  "name": "Midnight Diner",
+  "sym": "DINER",
+  "cat": "biz",
+  "icon": "diner",
+  "line": "Open 24 hours. Pancakes, coffee and gossip.",
+  "shot": "A classic chrome 1950s roadside diner with glowing windows and pink neon trim, a vintage car parked outside."
+ },
+ {
+  "id": "arcade",
+  "name": "Neon Arcade",
+  "sym": "ARCADE",
+  "cat": "biz",
+  "icon": "arcade",
+  "line": "High scores and higher rollers.",
+  "shot": "Inside a neon arcade with rows of glowing cabinet machines in a pink and blue haze."
+ },
+ {
+  "id": "tattoo",
+  "name": "Anchor Tattoo",
+  "sym": "INK",
+  "cat": "biz",
+  "icon": "tattoo",
+  "line": "Walk-ins welcome. Regrets not refunded.",
+  "shot": "Inside a stylish tattoo studio: a black leather chair, framed ink drawings on the walls, warm lamp light."
+ },
+ {
+  "id": "pawn",
+  "name": "Three Ball Pawn",
+  "sym": "PAWN",
+  "cat": "biz",
+  "icon": "pawn",
+  "line": "We buy anything. We ask nothing.",
+  "shot": "A pawn shop counter with glass cases full of gold watches, rings and chains, electric guitars hanging on the wall behind."
+ },
+ {
+  "id": "taco",
+  "name": "Late Night Tacos",
+  "sym": "TACO",
+  "cat": "biz",
+  "icon": "taco",
+  "line": "Parked outside the club at 3 AM. Always.",
+  "shot": "A late-night taco truck with string lights and a glowing service window, steam rising, on a quiet street corner."
+ },
+ {
+  "id": "gt",
+  "name": "Nightfall GT",
+  "sym": "GT",
+  "cat": "ride",
+  "icon": "supercar",
+  "line": "A V12 supercar. Zero to sixty before you blink.",
+  "shot": "A sleek unbranded modern sports coupe in pearl white parked on a coastal road with the ocean behind."
+ },
+ {
+  "id": "muscle",
+  "name": "Thunder Muscle",
+  "sym": "MUSCLE",
+  "cat": "ride",
+  "icon": "muscle",
+  "line": "Loud, fast, and pulled over a lot.",
+  "shot": "A classic unbranded American muscle car in deep purple parked under city street lights."
+ },
+ {
+  "id": "bike",
+  "name": "Street Bike",
+  "sym": "BIKE",
+  "cat": "ride",
+  "icon": "bike",
+  "line": "Splits lanes. Splits the bill.",
+  "shot": "An unbranded sport motorcycle parked on a wet street reflecting neon light."
+ },
+ {
+  "id": "limo",
+  "name": "Stretch Limo",
+  "sym": "LIMO",
+  "cat": "ride",
+  "icon": "limo",
+  "line": "Arrive like the client.",
+  "shot": "A black stretch limousine parked in front of a luxury hotel entrance with warm lights."
+ },
+ {
+  "id": "boat",
+  "name": "Offshore Speedboat",
+  "sym": "BOAT",
+  "cat": "ride",
+  "icon": "boat",
+  "line": "Twin engines and no brakes.",
+  "shot": "An offshore racing speedboat cutting across a calm bay throwing white spray, a skyline in the distance."
+ },
+ {
+  "id": "yacht",
+  "name": "Superyacht",
+  "sym": "YACHT",
+  "cat": "ride",
+  "icon": "yacht",
+  "line": "Helipad, hot tub, crew of twenty.",
+  "shot": "A white superyacht anchored in turquoise water with its deck lights on."
+ },
+ {
+  "id": "jet",
+  "name": "Private Jet",
+  "sym": "JET",
+  "cat": "ride",
+  "icon": "jet",
+  "line": "Wheels up whenever you say.",
+  "shot": "A white private business jet on an airport apron with its stairs down, runway lights glowing."
+ },
+ {
+  "id": "heli",
+  "name": "City Helicopter",
+  "sym": "HELI",
+  "cat": "ride",
+  "icon": "heli",
+  "line": "Skip traffic. Forever.",
+  "shot": "A sleek dark helicopter on a rooftop helipad above a city skyline, landing lights on."
+ }
 ]
