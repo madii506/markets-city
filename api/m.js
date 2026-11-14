@@ -1,4 +1,4 @@
-// markets API. Live prices, Jupiter quotes and swap transactions, wallet balances, tx status, charts.
+// Bukz API. Live prices, Jupiter quotes and swap transactions, wallet balances, tx status, charts.
 // No keys, no custody: every transaction it builds is signed in the user's own wallet.
 const CFG = require('./markets.json');
 
@@ -134,7 +134,7 @@ async function claim(b) {
     const fd = new FormData();
     fd.append('file', new Blob([png], { type: 'image/png' }), it.id + '.png');
     fd.append('name', it.name); fd.append('symbol', it.sym);
-    fd.append('description', `${it.line} A markets city asset. ${SITE}/app#city/${it.id}`);
+    fd.append('description', `${it.line} A Bukz city asset. ${SITE}/app#city/${it.id}`);
     fd.append('twitter', String(b.x || '')); fd.append('telegram', ''); fd.append('website', `${SITE}/app#city/${it.id}`); fd.append('showName', 'true');
     const ip = await fetch('https://pump.fun/api/ipfs', { method: 'POST', body: fd, signal: AbortSignal.timeout(25000) });
     const ij = await ip.json().catch(() => null);
@@ -297,9 +297,11 @@ async function wallet(addr) {
       amount: h.ui, raw: h.raw.toString(), decimals: h.decimals, price, value: price != null ? price * h.ui : null,
       ch24: live ? live.ch24 : (t.stats24h ? t.stats24h.priceChange : null), kind: m === USDC ? 'cash' : st ? st.kind : cc ? 'city' : 'token', city: cc ? cc.id : null, thin: live ? !!live.thin : false, verified: !!t.isVerified };
   }).sort((x, y) => (y.value || 0) - (x.value || 0));
-  const sol = bal / 1e9, solValue = solUsd != null ? sol * solUsd : null;
+  // getBalance answers { context, value } with the lamports in value
+  const lam = typeof bal === 'number' ? bal : bal && typeof bal.value === 'number' ? bal.value : null;
+  const sol = lam != null ? lam / 1e9 : null, solValue = solUsd != null && sol != null ? sol * solUsd : null;
   const total = (solValue || 0) + tokens.reduce((a, t) => a + (t.value || 0), 0);
-  return { wallet: addr, sol, lamports: bal, solUsd, solValue, solCh24: P && P.sol.ch24, solIcon: (P && P.sol.icon) || SOL_ICON, tokens, total, t: Date.now() };
+  return { wallet: addr, sol, lamports: lam, solUsd, solValue, solCh24: P && P.sol.ch24, solIcon: (P && P.sol.icon) || SOL_ICON, tokens, total, t: Date.now() };
 }
 
 // ---------------------------------------------------------------- charts: the real share on its exchange, else the token's own pool
@@ -370,7 +372,7 @@ async function trades(sym) {
 const PERPS = 'https://perps-api.jup.ag/v2';
 const PERP_MKTS = { SOL: { mint: SOL, y: 'SOL-USD', name: 'Solana' }, BTC: { mint: '3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh', y: 'BTC-USD', name: 'Bitcoin' }, ETH: { mint: '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs', y: 'ETH-USD', name: 'Ethereum' } };
 const PERP_IN = { SOL: 9, USDC: 6, BTC: 8, ETH: 8 };
-const PH = { 'content-type': 'application/json', accept: 'application/json', 'x-client-platform': 'markets' };
+const PH = { 'content-type': 'application/json', accept: 'application/json', 'x-client-platform': 'bukz' };
 const micro = x => x == null || x === '' ? null : Number(x) / 1e6;
 const toChain = (ui, dec) => { const str = String(ui); if (!/^\d*\.?\d+$/.test(str)) fail('enter an amount above zero'); const [i, f = ''] = str.split('.'); const r = BigInt((i || '0') + (f + '0'.repeat(dec)).slice(0, dec)); if (r <= 0n) fail('enter an amount above zero'); return r.toString(); };
 async function perpCall(path, init) {
@@ -511,7 +513,8 @@ async function trench() {
     try {
       const j = await getJ('https://datapi.jup.ag/v1/pools/gems', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ recent: pads, aboutToGraduate: pads, graduated: pads }) }, 8000);
       const L = k => ((j && j[k] && j[k].pools) || []).map(trJup).filter(Boolean);
-      const o = { src: 'jupiter', fresh: L('recent'), soon: L('aboutToGraduate'), done: L('graduated'), t: Date.now() };
+      // drop rows whose numbers contradict themselves (a near-graduated curve worth a few dollars)
+      const o = { src: 'jupiter', fresh: L('recent'), soon: L('aboutToGraduate').filter(c => c.mcap == null || c.mcap >= 4000), done: L('graduated').filter(c => c.mcap == null || c.mcap >= 2000), t: Date.now() };
       if (o.fresh.length + o.soon.length + o.done.length) return o;
       throw new Error('empty');
     } catch (e) {
