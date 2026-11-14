@@ -3,30 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>markets</title>
+<title>Bukz</title>
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#efe4ee">
+<meta name="theme-color" content="#a667cb">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/fav-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/assets/img/fav-192.png">
 <style>
+@font-face{font-family:Unbounded;src:url(/assets/fonts/unbounded.woff2) format('woff2');font-weight:200 900;font-display:swap}
 @font-face{font-family:Inter;src:url(/assets/fonts/inter.woff2) format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
-@font-face{font-family:Inter;src:url(/assets/fonts/inter-italic.woff2) format('woff2');font-weight:100 900;font-style:italic;font-display:swap}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{font-family:Inter,system-ui,sans-serif;color:#241b45;background:#efe4ee;-webkit-font-smoothing:antialiased;overflow:hidden}
-.bg{position:fixed;inset:0;background:url(/assets/img/city-poster.jpg) 50% 50%/cover no-repeat;filter:saturate(.9);transform:scale(1.06);animation:drift 40s ease-in-out infinite alternate}
+body{font-family:Inter,system-ui,sans-serif;color:#1c1a3a;background:#f7f2e9;-webkit-font-smoothing:antialiased;overflow:hidden}
+.bg{position:fixed;inset:0;background:url(/assets/img/city-poster.jpg) 50% 50%/cover no-repeat;transform:scale(1.06);animation:drift 40s ease-in-out infinite alternate}
 @media (orientation:portrait){.bg{background-image:url(/assets/img/city-poster-m.jpg)}}
 @keyframes drift{to{transform:scale(1.12) translate(-1.5%,1%)}}
-.veil{position:fixed;inset:0;background:linear-gradient(180deg,rgba(240,232,246,.55),rgba(246,236,243,.35) 45%,rgba(247,240,245,.9))}
-main{position:relative;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
-.n{font-style:italic;font-weight:900;font-size:clamp(110px,22vw,260px);line-height:.85;letter-spacing:-.06em;padding-right:.08em;background:linear-gradient(180deg,#ffffff 30%,#efe6fb 72%,#e0d3f5);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 10px 30px rgba(70,34,104,.3));animation:in 1.2s cubic-bezier(.2,.8,.2,1) both}
-h1{margin-top:18px;font-size:clamp(15px,1.6vw,20px);font-weight:750;letter-spacing:.28em;text-transform:uppercase;animation:in 1s .2s cubic-bezier(.2,.8,.2,1) both}
-p{margin-top:12px;max-width:420px;color:#4a3f72;line-height:1.6;animation:in 1s .3s cubic-bezier(.2,.8,.2,1) both}
+.veil{position:fixed;inset:0;background:linear-gradient(180deg,rgba(42,20,112,.06),rgba(42,20,112,.22) 55%,rgba(42,20,112,.6))}
+main{position:relative;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;color:#fffaf0}
+.n{font-family:Unbounded,Inter,sans-serif;font-weight:900;font-size:clamp(110px,22vw,260px);line-height:.85;letter-spacing:-.05em;color:#fffaf0;text-shadow:.05em .05em 0 #2a1470;font-feature-settings:normal;animation:in 1.2s cubic-bezier(.2,.8,.2,1) both}
+h1{margin-top:22px;font-family:Unbounded,Inter,sans-serif;font-size:clamp(16px,1.8vw,22px);font-weight:800;letter-spacing:-.01em;text-shadow:.06em .06em 0 #2a1470;font-feature-settings:normal;animation:in 1s .2s cubic-bezier(.2,.8,.2,1) both}
+p{margin-top:12px;max-width:420px;color:#fff3df;line-height:1.6;text-shadow:0 1px 12px rgba(28,26,58,.6);animation:in 1s .3s cubic-bezier(.2,.8,.2,1) both}
 .b{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:30px;animation:in 1s .4s cubic-bezier(.2,.8,.2,1) both}
-.b a{display:inline-flex;align-items:center;gap:10px;padding:15px 28px;border:1px solid rgba(107,74,158,.75);background:rgba(255,255,255,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#6b4a9e;font-size:13px;font-weight:750;letter-spacing:.22em;text-transform:uppercase;text-decoration:none;transition:background .3s,letter-spacing .4s}
-.b a:hover{background:rgba(255,255,255,.92);letter-spacing:.26em}
-.b a.p{background:linear-gradient(90deg,#6b4a9e,#c25b8e 60%,#e98d6e);color:#fff;border-color:transparent}
+.b a{display:inline-flex;align-items:center;height:52px;padding:0 24px;border-radius:999px;font-weight:800;font-size:14.5px;text-decoration:none;transition:transform .3s,box-shadow .3s}
+.b a.p{background:#fff8e8;color:#2a1470;box-shadow:0 5px 0 #2a1470}
+.b a.p:hover{transform:translateY(-2px);box-shadow:0 7px 0 #2a1470}
+.b a.s{color:#fffaf0;border:1.5px solid rgba(255,250,240,.75);background:rgba(255,250,240,.14)}
 @keyframes in{from{opacity:0;transform:translateY(14px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -37,7 +38,7 @@ p{margin-top:12px;max-width:420px;color:#4a3f72;line-height:1.6;animation:in 1s 
   <div class="n" aria-hidden="true">404</div>
   <h1>This street isn't on the map</h1>
   <p>The page you were looking for isn't in the city. The market is still open.</p>
-  <div class="b"><a class="p" href="/">Back to the city</a><a href="/app">Open the terminal</a></div>
+  <div class="b"><a class="p" href="/">Back to the city</a><a class="s" href="/app">Open the terminal</a></div>
 </main>
 </body>
 </html>
