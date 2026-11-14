@@ -1,4 +1,4 @@
-/* markets: wallet. Phantom, Solflare, Backpack. Keys never leave the wallet; we only ask it to sign. */
+/* Bukz: wallet. Phantom, Solflare, Backpack. Keys never leave the wallet; we only ask it to sign. */
 (function () {
   const WALLETS = [
     { name: 'Phantom', get: () => window.phantom && window.phantom.solana && window.phantom.solana.isPhantom && window.phantom.solana, color: '#ab9ff2', dl: 'https://phantom.com/download', ul: u => `https://phantom.app/ul/browse/${encodeURIComponent(u)}?ref=${encodeURIComponent(location.origin)}` },

@@ -1,4 +1,4 @@
-/* markets terminal: watchlist, candles, time & sales, heatmap, order ticket, account, screener, portfolio, command line.
+/* Bukz terminal: watchlist, candles, time & sales, heatmap, order ticket, account, screener, portfolio, command line.
    Every number comes from /api/m (Jupiter, Solana RPC, the share's exchange, GeckoTerminal). Nothing is simulated. */
 (function () {
   const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
@@ -53,7 +53,7 @@
       S.by = Object.fromEntries(j.stocks.concat(city).map(s => [s.sym, s])); feed(true);
       if (!S.by[S.sym]) S.sym = 'NVDA';
       $('#solp').innerHTML = j.sol.usd ? `SOL <b>${usd(j.sol.usd)}</b> <span class="${cls(j.sol.ch24)}">${pc(j.sol.ch24)}</span>` : '';
-      renderTape(); renderWatch(prev); renderHeat(); renderQuote(); renderMarkets(); renderAccount(); renderOverview();
+      renderTape(); renderWatch(prev); renderHeat(); renderQuote(); renderMarkets(); renderAccount(); renderOverview(); checkAlerts(); renderAlr();
       if (S.view === 'trade') renderTicket();
       if (first) { first = false; loadChart(); loadTrades(); loadStats(S.sym); }
     } catch (e) {
@@ -73,9 +73,47 @@
   $('#tape').addEventListener('click', e => { const t = e.target.closest('[data-sym]'); if (t) pick(t.dataset.sym); });
 
   // ---------------------------------------------------------------- watchlist
+  // price alerts: one-shot, kept in this browser, checked every time prices refresh (only while a tab is open)
+  const ALR = (() => { try { return JSON.parse(store.get('markets.alerts') || '[]').filter(a => a && a.sym && a.px > 0); } catch { return []; } })();
+  const saveAlr = () => store.set('markets.alerts', JSON.stringify(ALR));
+  const pxOf = s => s ? (s.usd != null ? s.usd : s.rawUsd) : null;
+  function addAlert(sym, px) {
+    const s = S.by[sym], cur = pxOf(s); if (!s || !(px > 0)) return null;
+    const a = { sym, px, up: cur == null ? true : px > cur, t: Date.now() };
+    ALR.push(a); while (ALR.length > 30) ALR.shift(); saveAlr(); renderAlr();
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => { });
+    return a;
+  }
+  function checkAlerts() {
+    let hit = false;
+    for (let i = ALR.length - 1; i >= 0; i--) {
+      const a = ALR[i], v = pxOf(S.by[a.sym]); if (v == null) continue;
+      if (a.up ? v >= a.px : v <= a.px) {
+        hit = true; ALR.splice(i, 1);
+        const msg = `${a.sym} ${a.up ? 'rose to' : 'fell to'} ${usd(v)} (your alert: ${usd(a.px)})`;
+        toast('🔔 ' + msg);
+        try { if ('Notification' in window && Notification.permission === 'granted') new Notification('Bukz price alert', { body: msg, icon: '/assets/img/fav-192.png', tag: 'bukz-' + a.sym }); } catch { }
+      }
+    }
+    if (hit) { saveAlr(); renderAlr(); }
+  }
+  function renderAlr() {
+    const el = $('#alrL'); if (!el) return;
+    const L = ALR.filter(a => a.sym === S.sym);
+    el.innerHTML = L.map(a => `<span>${a.up ? '▲' : '▼'} ${usd(a.px)}<button data-alr="${ALR.indexOf(a)}" aria-label="Remove alert">×</button></span>`).join('') + (ALR.length > L.length ? `<span style="background:var(--pn2);color:var(--dim)">+${ALR.length - L.length} on other stocks</span>` : '');
+    $('#alrPx').placeholder = 'alert ' + S.sym + ' at $';
+  }
+  $('#alrGo').addEventListener('click', () => { const v = parseFloat(($('#alrPx').value || '').replace(',', '.').replace(/[^\d.]/g, '')); const a = addAlert(S.sym, v); if (!a) { toast('enter a price above zero'); return; } $('#alrPx').value = ''; toast(`alert set: ${a.sym} ${a.up ? 'above' : 'below'} ${usd(a.px)}`); });
+  $('#alrPx').addEventListener('keydown', e => { if (e.key === 'Enter') $('#alrGo').click(); });
+  $('#alrL').addEventListener('click', e => { const b = e.target.closest('[data-alr]'); if (!b) return; ALR.splice(+b.dataset.alr, 1); saveAlr(); renderAlr(); });
+
+  // starred symbols, kept in this browser
+  const STARS = new Set((store.get('markets.stars') || '').split(',').filter(Boolean));
+  function star(sym, on) { if (on == null) on = !STARS.has(sym); if (on) STARS.add(sym); else STARS.delete(sym); store.set('markets.stars', [...STARS].join(',')); renderWatch(); return on; }
+  const inTab = s => S.wk === 'star' ? STARS.has(s.sym) : S.wk === 'city' ? s.kind === 'city' : s.kind !== 'city';
   function wlList() {
     const q = S.wq.trim().toLowerCase();
-    const L = Object.values(S.by).filter(s => (S.wk === 'city' ? s.kind === 'city' : s.kind !== 'city') && (!q || s.sym.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)));
+    const L = Object.values(S.by).filter(s => inTab(s) && (!q || s.sym.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)));
     if (S.ws === 'sym') L.sort((a, b) => a.sym.localeCompare(b.sym));
     else if (S.ws === 'ch') L.sort((a, b) => (a.thin - b.thin) || ((b.ch24 == null ? -99 : b.ch24) - (a.ch24 == null ? -99 : a.ch24)));
     else L.sort((a, b) => (a.thin - b.thin) || (b.liq || 0) - (a.liq || 0));
@@ -84,22 +122,22 @@
   function renderWatch(prev) {
     if (!S.P) return;
     const L = wlList();
-    $('#wlN').textContent = L.length + '/' + Object.values(S.by).filter(s => (S.wk === 'city') === (s.kind === 'city')).length;
+    $('#wlN').textContent = L.length + '/' + Object.values(S.by).filter(inTab).length;
     $('#wlb').innerHTML = L.map(s => {
       const p0 = prev && prev[s.sym], moved = p0 && p0.usd != null && s.usd != null && p0.usd !== s.usd;
-      return `<div class="wr${s.sym === S.sym ? ' on' : ''}${s.thin ? ' thin' : ''}${moved ? ' fl' : ''}" data-sym="${esc(s.sym)}" title="${esc(s.name)}">${lg(s.sym, s.icon)}<b>${esc(s.sym)}</b><span class="p">${s.thin ? 'thin' : px(s.usd)}</span><span class="c ${cls(s.ch24)}">${s.thin ? '' : pc(s.ch24)}</span></div>`;
-    }).join('') || (S.wk === 'city' ? '<div class="empty">no city coins trading yet. the first founder opens the doors. <a href="#city" style="color:var(--acc)">see the city →</a></div>' : '<div class="empty">no match.</div>');
+      return `<div class="wr${s.sym === S.sym ? ' on' : ''}${s.thin ? ' thin' : ''}${moved ? ' fl' : ''}" data-sym="${esc(s.sym)}" title="${esc(s.name)}">${lg(s.sym, s.icon)}<b>${esc(s.sym)}</b><span class="p">${s.thin ? 'thin' : px(s.usd)}</span><span class="c ${cls(s.ch24)}">${s.thin ? '' : pc(s.ch24)}</span><button class="stb${STARS.has(s.sym) ? ' on' : ''}" data-star="${esc(s.sym)}" aria-label="${STARS.has(s.sym) ? 'Unstar' : 'Star'} ${esc(s.sym)}">${STARS.has(s.sym) ? '★' : '☆'}</button></div>`;
+    }).join('') || (S.wk === 'star' ? '<div class="empty">no stars yet. tap ☆ on any row to keep it here.</div>' : S.wk === 'city' ? '<div class="empty">no city coins trading yet. the first founder opens the doors. <a href="#city" style="color:var(--acc)">see the city →</a></div>' : '<div class="empty">no match.</div>');
   }
-  $('#wlb').addEventListener('click', e => { const r = e.target.closest('[data-sym]'); if (r) pick(r.dataset.sym); });
+  $('#wlb').addEventListener('click', e => { const st = e.target.closest('[data-star]'); if (st) { e.stopPropagation(); toast((star(st.dataset.star) ? 'starred ' : 'unstarred ') + st.dataset.star); return; } const r = e.target.closest('[data-sym]'); if (r) pick(r.dataset.sym); });
   $('#wlq').addEventListener('input', e => { S.wq = e.target.value; renderWatch(); });
   $('#wlk').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.wk = b.dataset.k; $$('#wlk button').forEach(x => x.classList.toggle('on', x === b)); renderWatch(); });
   $('#wls').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.ws = b.dataset.s; $$('#wls button').forEach(x => x.classList.toggle('on', x === b)); renderWatch(); });
 
   // ---------------------------------------------------------------- heatmap
   function heatColor(s) {
-    if (s.thin || s.ch24 == null) return ['#f3eef5', 'var(--dim)'];
+    if (s.thin || s.ch24 == null) return ['#f3eee4', 'var(--dim)'];
     const a = Math.pow(Math.min(1, Math.abs(s.ch24) / 4), 0.8), to = s.ch24 >= 0 ? [23, 138, 88] : [201, 55, 90];
-    const c = [243, 238, 245].map((b, i) => Math.round(b + (to[i] - b) * a));
+    const c = [246, 241, 231].map((b, i) => Math.round(b + (to[i] - b) * a));
     return [`rgb(${c.join(',')})`, a > 0.55 ? '#ffffff' : (s.ch24 >= 0 ? '#11663f' : '#9c2443')];
   }
   const lastHeat = {}; let heatSeen = false;
@@ -151,7 +189,7 @@
     if (S.view !== 'trade') show('trade');
     if (changed) { S.amt = ''; $('#amt').value = ''; resetQuote(); $('#log').innerHTML = ''; S.trades = null; S.tsSeen = new Set(); }
     $$('.wr').forEach(r => r.classList.toggle('on', r.dataset.sym === sym));
-    $$('.hm-t').forEach(r => r.classList.toggle('on', r.dataset.sym === sym));
+    $$('.hm-t').forEach(r => r.classList.toggle('on', r.dataset.sym === sym)); renderAlr();
     const row = $(`.wr[data-sym="${CSS.escape(sym)}"]`); if (row) row.scrollIntoView({ block: 'nearest' });
     renderQuote(); renderTicket(); loadStats(sym); if (changed) { loadChart(); loadTrades(); }
   }
@@ -182,21 +220,21 @@
     const X = i => pad.l + cw * (i + 0.5), Y = v => pad.t + ph * (1 - (v - lo) / (hi - lo));
     const vy0 = pad.t + ph + 6 + vh;
     let g = '';
-    for (let k = 0; k <= 4; k++) { const v = lo + (hi - lo) * k / 4, y = Y(v); g += `<line x1="${pad.l}" x2="${W - pad.r + 4}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#efe7f2" stroke-dasharray="2 4"/><text x="${W - pad.r + 8}" y="${(y + 4).toFixed(1)}" fill="#9a90b5" font-size="10.5" font-family="JBM,monospace">${v >= 10000 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : px(v)}</text>`; }
-    for (let k = 0; k < 5; k++) { const i = Math.min(n - 1, Math.round((n - 1) * k / 4)); g += `<text x="${Math.min(W - pad.r - 40, Math.max(pad.l, X(i) - 18)).toFixed(1)}" y="${H - 5}" fill="#9a90b5" font-size="10.5" font-family="JBM,monospace">${esc(tl(P[i][0], range))}</text>`; }
+    for (let k = 0; k <= 4; k++) { const v = lo + (hi - lo) * k / 4, y = Y(v); g += `<line x1="${pad.l}" x2="${W - pad.r + 4}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#eee6d8" stroke-dasharray="2 4"/><text x="${W - pad.r + 8}" y="${(y + 4).toFixed(1)}" fill="#8f89a6" font-size="10.5" font-family="JBM,monospace">${v >= 10000 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : px(v)}</text>`; }
+    for (let k = 0; k < 5; k++) { const i = Math.min(n - 1, Math.round((n - 1) * k / 4)); g += `<text x="${Math.min(W - pad.r - 40, Math.max(pad.l, X(i) - 18)).toFixed(1)}" y="${H - 5}" fill="#8f89a6" font-size="10.5" font-family="JBM,monospace">${esc(tl(P[i][0], range))}</text>`; }
     let cand = '', vol = '';
     for (let i = 0; i < n; i++) {
-      const [t, o, h, l, cl, v] = P[i], up = cl >= o, col = up ? '#1f9e66' : '#d6416a', x = X(i);
+      const [t, o, h, l, cl, v] = P[i], up = cl >= o, col = up ? '#1f9e66' : '#d64457', x = X(i);
       cand += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${Y(h).toFixed(1)}" y2="${Y(l).toFixed(1)}" stroke="${col}" stroke-width="1"/>`;
       const y0 = Y(Math.max(o, cl)), y1 = Y(Math.min(o, cl));
       cand += `<rect x="${(x - bw / 2).toFixed(1)}" y="${y0.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, y1 - y0).toFixed(1)}" fill="${up ? col : col}" fill-opacity="${up ? 0.9 : 0.9}"/>`;
       if (v) { const hgt = Math.max(1, vh * v / vmax); vol += `<rect x="${(x - bw / 2).toFixed(1)}" y="${(vy0 - hgt).toFixed(1)}" width="${bw.toFixed(1)}" height="${hgt.toFixed(1)}" fill="${col}" fill-opacity=".28"/>`; }
     }
     const last = P[n - 1][4], ly = Y(last), lastUp = last >= (range === '1D' && c.prev ? c.prev : P[0][1]);
-    const prevL = range === '1D' && c.prev ? `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(c.prev).toFixed(1)}" y2="${Y(c.prev).toFixed(1)}" stroke="#8a80a6" stroke-opacity=".4" stroke-dasharray="4 4"/><text x="${pad.l + 4}" y="${(Y(c.prev) - 4).toFixed(1)}" fill="#9a90b5" font-size="10" font-family="JBM,monospace">prev close ${px(c.prev)}</text>` : '';
-    const lastTag = `<line x1="${pad.l}" x2="${W - pad.r}" y1="${ly.toFixed(1)}" y2="${ly.toFixed(1)}" stroke="${lastUp ? '#1f9e66' : '#d6416a'}" stroke-opacity=".5" stroke-dasharray="1 3"/><rect x="${W - pad.r + 2}" y="${(ly - 9).toFixed(1)}" width="${pad.r - 4}" height="18" fill="${lastUp ? '#1f9e66' : '#d6416a'}"/><text x="${W - pad.r + 7}" y="${(ly + 4).toFixed(1)}" fill="#ffffff" font-size="10.5" font-weight="700" font-family="JBM,monospace">${px(last)}</text>`;
+    const prevL = range === '1D' && c.prev ? `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(c.prev).toFixed(1)}" y2="${Y(c.prev).toFixed(1)}" stroke="#8a85a2" stroke-opacity=".4" stroke-dasharray="4 4"/><text x="${pad.l + 4}" y="${(Y(c.prev) - 4).toFixed(1)}" fill="#8f89a6" font-size="10" font-family="JBM,monospace">prev close ${px(c.prev)}</text>` : '';
+    const lastTag = `<line x1="${pad.l}" x2="${W - pad.r}" y1="${ly.toFixed(1)}" y2="${ly.toFixed(1)}" stroke="${lastUp ? '#1f9e66' : '#d64457'}" stroke-opacity=".5" stroke-dasharray="1 3"/><rect x="${W - pad.r + 2}" y="${(ly - 9).toFixed(1)}" width="${pad.r - 4}" height="18" fill="${lastUp ? '#1f9e66' : '#d64457'}"/><text x="${W - pad.r + 7}" y="${(ly + 4).toFixed(1)}" fill="#ffffff" font-size="10.5" font-weight="700" font-family="JBM,monospace">${px(last)}</text>`;
     const dk = (c.sym || '') + range; const sweep = !still && box.dataset.k !== dk; box.dataset.k = dk;
-    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"${sweep ? ' class="drawin"' : ''}>${g}${prevL}${vol}${cand}${lastTag}<line id="cx" y1="${pad.t}" y2="${H - pad.b}" stroke="#8a80a6" stroke-opacity=".5" stroke-dasharray="3 3" visibility="hidden"/><line id="cy" x1="${pad.l}" x2="${W - pad.r}" stroke="#8a80a6" stroke-opacity=".5" stroke-dasharray="3 3" visibility="hidden"/></svg>`;
+    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"${sweep ? ' class="drawin"' : ''}>${g}${prevL}${vol}${cand}${lastTag}<line id="cx" y1="${pad.t}" y2="${H - pad.b}" stroke="#8a85a2" stroke-opacity=".5" stroke-dasharray="3 3" visibility="hidden"/><line id="cy" x1="${pad.l}" x2="${W - pad.r}" stroke="#8a85a2" stroke-opacity=".5" stroke-dasharray="3 3" visibility="hidden"/></svg>`;
     const svg = box.querySelector('svg'), cx = svg.querySelector('#cx'), cy = svg.querySelector('#cy');
     const oh = i => { const [t, o, h, l, cl, v] = P[i]; ohlcEl.innerHTML = `${esc(tl(t, range))} O <b>${px(o)}</b> H <b>${px(h)}</b> L <b>${px(l)}</b> C <b class="${cl >= o ? 'up' : 'dn'}">${px(cl)}</b>${v ? ' V <b>' + int(v) + '</b>' : ''}`; };
     oh(n - 1);
@@ -233,7 +271,7 @@
   const inSym = () => S.side === 'buy' ? S.cash : S.sym, outSym = () => S.side === 'buy' ? S.sym : S.cash;
   function balOf(sym) {
     if (!S.bal) return null;
-    if (sym === 'SOL') return { ui: Math.max(0, S.bal.sol), raw: BigInt(S.bal.lamports || 0) };
+    if (sym === 'SOL') return { ui: Math.max(0, S.bal.sol || 0), raw: BigInt(Math.round(Number(S.bal.lamports) || 0)) };
     if (sym === 'USDC') { const t = S.bal.tokens.find(x => x.kind === 'cash'); return t ? { ui: t.amount, raw: BigInt(t.raw) } : { ui: 0, raw: 0n }; }
     const s = S.by[sym], t = s && held(s.mint); return t ? { ui: t.amount, raw: BigInt(t.raw) } : { ui: 0, raw: 0n };
   }
@@ -361,7 +399,7 @@
   async function refreshBal() {
     const a = WAL.W.addr; if (!a) return;
     try { const [b] = await Promise.all([api('wallet', { addr: a }), api('ppos', { addr: a }).then(j => { P2.pos = j.positions; }).catch(() => { })]); if (a !== WAL.W.addr) return; S.bal = b; S.balAt = Date.now(); S.balErr = null; } catch (e) { S.balErr = e.message; }
-    renderAccount(); renderTicket(); if (S.view === 'portfolio') renderPortfolio();
+    renderAccount(); renderTicket(); if (S.view === 'portfolio') renderPortfolio(); if (S.view === 'trench' && typeof renderBags === 'function') renderBags();
   }
   function totals() {
     const B = S.bal, st = B.tokens.filter(t => ['stock', 'etf', 'metal', 'city'].includes(t.kind)), cash = B.tokens.filter(t => t.kind === 'cash'), oth = B.tokens.filter(t => t.kind === 'token' && t.value != null && t.value >= 0.01);
@@ -378,7 +416,7 @@
     const T = totals(), B = S.bal;
     const seg = (v, c) => T.tot > 0 && v > 0 ? `<i style="width:${(v / T.tot * 100).toFixed(2)}%;background:${c}"></i>` : '';
     a.innerHTML = `<div><div class="lbl">NET WORTH</div><div class="nw">${usd(T.tot)}</div><div class="${cls(T.day)}" style="font-size:11.5px">${T.day >= 0 ? '+' : '−'}${usd(Math.abs(T.day))} today</div></div>
-      <div class="bar2">${seg(T.vS, '#6b4a9e')}${seg(T.vP, '#1f9e66')}${seg(T.vC, '#b9a7e2')}${seg(T.vO, '#e9a0bf')}</div>
+      <div class="bar2">${seg(T.vS, '#6c3fe0')}${seg(T.vP, '#1f9e66')}${seg(T.vC, '#b8b1ee')}${seg(T.vO, '#f2c46b')}</div>
       ${T.pp.length ? `<div class="ln" data-perps="1">${lg('PERP', null, 'm')}<div><b>PERPS</b><small>${T.pp.length} open</small></div><div class="r">${usd(T.vP)}<small class="${cls(T.pp.reduce((a, p) => a + (p.pnl || 0), 0))}">${(t => (t >= 0 ? '+' : '−') + usd(Math.abs(t)))(T.pp.reduce((a, p) => a + (p.pnl || 0), 0))} pnl</small></div></div>` : ''}
       <div>${[['SOL', B.solIcon, amt(B.sol, 4), B.solValue, B.solCh24]].concat(T.cash.map(t => ['USDC', t.icon, amt(t.amount, 2), t.value, null])).concat(T.st.map(t => [t.sym, t.icon, amt(t.amount), t.value, t.ch24])).map(([sy, ic, am, v, ch]) => `<div class="ln" data-sym="${esc(sy)}">${lg(sy, ic, 'm')}<div><b>${esc(sy)}</b><small>${am}</small></div><div class="r">${usd(v)}<small class="${cls(ch)}">${ch == null ? '' : pc(ch)}</small></div></div>`).join('')}</div>
       ${T.st.length ? '' : '<div class="mute" style="font-size:11.5px">No stocks yet. The city is waiting.</div>'}`;
@@ -411,8 +449,8 @@
     const seg = (v, c) => T.tot > 0 && v > 0 ? `<i style="width:${(v / T.tot * 100).toFixed(2)}%;background:${c}"></i>` : '';
     const row = t => `<div class="tr" data-sym="${esc(t.sym)}" style="grid-template-columns:minmax(150px,1.2fr) minmax(150px,1.6fr) 120px 110px 110px 92px 70px"><span>${lg(t.sym, t.icon)} <b>${esc(t.sym)}</b></span><span class="nmc">${esc(t.name)}</span><span class="r">${amt(t.amount)}</span><span class="r">${usd(t.price)}</span><span class="r"><b>${usd(t.value)}</b></span><span class="r ${cls(t.ch24)}">${pc(t.ch24)}</span><span class="go2">${S.by[t.sym] ? 'Trade →' : ''}</span></div>`;
     const head = `<div class="tr th" style="grid-template-columns:minmax(150px,1.2fr) minmax(150px,1.6fr) 120px 110px 110px 92px 70px"><span>SYMBOL</span><span>NAME</span><span class="r">AMOUNT</span><span class="r">PRICE</span><span class="r">VALUE</span><span class="r">24H</span><span></span></div>`;
-    pf.innerHTML = `<h1>Portfolio</h1><div class="lead"><a class="sub" href="https://solscan.io/account/${esc(B.wallet)}" target="_blank" rel="noopener">${short(B.wallet)} ↗</a> · <button class="sub" id="pfr" style="text-decoration:underline">refresh</button></div>
-      <div class="pf-top"><div class="pn"><div class="lbl">NET WORTH</div><div class="big">${usd(T.tot)}</div><div class="${cls(T.day)}">${T.day >= 0 ? '+' : '−'}${usd(Math.abs(T.day))} today</div><div class="bar2" style="margin-top:12px">${seg(T.vS, '#6b4a9e')}${seg(T.vP, '#1f9e66')}${seg(T.vC, '#b9a7e2')}${seg(T.vO, '#e9a0bf')}</div><div class="legend"><span><i style="background:#6b4a9e"></i>stocks &amp; city ${usd(T.vS)}</span><span><i style="background:#1f9e66"></i>perps ${usd(T.vP)}</span><span><i style="background:#b9a7e2"></i>cash ${usd(T.vC)}</span><span><i style="background:#e9a0bf"></i>other ${usd(T.vO)}</span></div></div>
+    pf.innerHTML = `<h1>Portfolio</h1><div class="lead"><a class="sub" href="https://solscan.io/account/${esc(B.wallet)}" target="_blank" rel="noopener">${short(B.wallet)} ↗</a> · <button class="sub" id="pfr" style="text-decoration:underline">refresh</button> · <button class="sub" id="pfs" style="text-decoration:underline;font-weight:750">share my bag</button></div>
+      <div class="pf-top"><div class="pn"><div class="lbl">NET WORTH</div><div class="big">${usd(T.tot)}</div><div class="${cls(T.day)}">${T.day >= 0 ? '+' : '−'}${usd(Math.abs(T.day))} today</div><div class="bar2" style="margin-top:12px">${seg(T.vS, '#6c3fe0')}${seg(T.vP, '#1f9e66')}${seg(T.vC, '#b8b1ee')}${seg(T.vO, '#f2c46b')}</div><div class="legend"><span><i style="background:#6c3fe0"></i>stocks &amp; city ${usd(T.vS)}</span><span><i style="background:#1f9e66"></i>perps ${usd(T.vP)}</span><span><i style="background:#b8b1ee"></i>cash ${usd(T.vC)}</span><span><i style="background:#f2c46b"></i>other ${usd(T.vO)}</span></div></div>
       <div class="pn"><div class="lbl">CASH</div><div style="display:grid;gap:8px;margin-top:10px"><div>${lg('SOL', B.solIcon, 'm')} <b>${amt(B.sol, 4)} SOL</b> <span class="mute">${usd(B.solValue)}</span></div>${(T.cash.length ? T.cash : [{ amount: 0, value: 0, icon: usdcIcon() }]).map(t => `<div>${lg('USDC', t.icon, 'm')} <b>${amt(t.amount, 2)} USDC</b> <span class="mute">${usd(t.value)}</span></div>`).join('')}</div></div></div>
       ${T.pp.length ? `<div class="lbl" style="margin:14px 0 6px">PERPS · ${T.pp.length} OPEN · <a href="#perps" style="color:var(--acc)">manage →</a></div><div class="scroll-x"><div class="tbl" style="min-width:760px"><div class="tr th" style="grid-template-columns:150px 100px 110px 110px 110px 1fr"><span>MARKET</span><span class="r">SIZE</span><span class="r">ENTRY</span><span class="r">MARK</span><span class="r">LIQ</span><span class="r">PNL</span></div>${T.pp.map(p => `<div class="tr" style="grid-template-columns:150px 100px 110px 110px 110px 1fr" onclick="location.hash='#perps'"><span><b class="${p.side === 'long' ? 'up' : 'dn'}">${esc(p.asset)} ${p.side === 'long' ? 'LONG' : 'SHORT'}</b> <span class="mute">${p.lev ? p.lev.toFixed(1) + 'x' : ''}</span></span><span class="r">${usd(p.size)}</span><span class="r">${usd(p.entry)}</span><span class="r">${usd(p.mark)}</span><span class="r dn">${usd(p.liq)}</span><span class="r ${cls(p.pnl)}">${p.pnl >= 0 ? '+' : '−'}${usd(Math.abs(p.pnl || 0))} <span class="mute">${pc(p.pnlPct)}</span></span></div>`).join('')}</div></div>` : ''}
       <div class="lbl" style="margin:14px 0 6px">STOCKS &amp; CITY · ${T.st.length}</div>
@@ -441,6 +479,10 @@
     if (c === 'portfolio' || c === 'pf') { location.hash = '#portfolio'; return cmdOut('your portfolio', 'ok'); }
     if (c === 'city') { location.hash = '#city'; return cmdOut('the city', 'ok'); }
     if (c === 'perps' || c === 'perp') { location.hash = '#perps'; return cmdOut('the perps desk', 'ok'); }
+    if (c === 'alert') { const sym = (w[1] || '').toUpperCase(), v = parseFloat(w[2]); if (!S.by[sym] || !(v > 0)) return cmdOut('alert: e.g. alert nvda 170', 'err'); const a = addAlert(sym, v); return cmdOut(`alert set: ${a.sym} ${a.up ? 'above' : 'below'} ${usd(a.px)} (rings while this tab is open)`, 'ok'); }
+    if (c === 'alerts') return cmdOut(ALR.length ? ALR.map(a => `${a.sym} ${a.up ? '>' : '<'} ${usd(a.px)}`).join(' · ') : 'no alerts set', 'ok');
+    if (c === 'star' || c === 'unstar') { const sym = (w[1] || S.sym).toUpperCase(); if (!S.by[sym]) return cmdOut('no market called ' + sym, 'err'); star(sym, c === 'star'); return cmdOut((c === 'star' ? 'starred ' : 'unstarred ') + sym, 'ok'); }
+    if (c === 'share') { if (!WAL.W.addr) { openWallet(); return cmdOut('connect a wallet first', 'err'); } location.hash = '#portfolio'; setTimeout(openShare, 300); return cmdOut('making your bag card', 'ok'); }
     if (c === 'trench' || c === 'trenches' || c === 'tr') { location.hash = '#trench' + (w[1] && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(w[1]) ? '/' + w[1] : ''); return cmdOut('the trenches', 'ok'); }
     if (c === 'long' || c === 'short') { const a = (w[1] || 'sol').toUpperCase(); if (!['SOL', 'BTC', 'ETH'].includes(a)) return cmdOut('perps: sol, btc or eth', 'err'); location.hash = '#perps'; P2.a = a; P2.side = c; if (w[2] && /^\d*\.?\d+$/.test(w[2])) { P2.amt = w[2]; $('#pamt').value = w[2]; } const lv = (w[3] || '').replace(/x$/i, ''); if (lv && +lv >= 1.1 && +lv <= 100) { P2.lev = +lv; $('#plev').value = lv; } setTimeout(() => { renderPerpMarkets && P2.mk && renderPerpMarkets(); renderPerpHead(); perpQuoteSoon(); loadPerpChart(); }, 50); return cmdOut(`${c} ${a}${w[2] ? ' · ' + w[2] + ' ' + P2.input : ''}${lv ? ' · ' + lv + 'x' : ''} · press the button to sign`, 'ok'); }
     if (c === 'docs' || c === 'man') { location.hash = '#docs'; return cmdOut('the docs', 'ok'); }
@@ -540,7 +582,7 @@
     if (!WAL.W.addr) return openWallet();
     const it = claiming; if (!it || $('#clGo').disabled) return;
     const buy = Math.max(0, Math.min(10, parseFloat($('#clBuy').value) || 0));
-    if (S.bal && S.bal.sol < buy + 0.03) { toast(`you need about ${amt(buy + 0.03, 3)} SOL for this`); return; }
+    if (S.bal && S.bal.sol != null && S.bal.sol < buy + 0.03) { toast(`you need about ${amt(buy + 0.03, 3)} SOL for this`); return; }
     const go = $('#clGo'), L = $('#clLog'); go.disabled = true; L.innerHTML = '';
     const say = (h, k) => { const d = document.createElement('div'); if (k) d.className = k; d.innerHTML = h; L.appendChild(d); return d; };
     let line;
@@ -711,16 +753,17 @@
   function renderDocs() {
     if ($('#docsBody').dataset.done) return; $('#docsBody').dataset.done = 1;
     const sec = [
-      ['what', 'what is markets', `<p>markets is the city's stock market: a trading terminal on Solana for real stocks, plus a city of real estate, businesses and rides that trade as coins. Everything happens from your own wallet. Nothing is held for you, and every trade settles on-chain in seconds.</p>`],
+      ['what', 'what is Bukz', `<p>Bukz is the city's money: a trading terminal on Solana for real stocks and perps, a live feed of fresh pump.fun coins (the trenches), and a city of real estate, businesses and rides that trade as coins. Everything happens from your own wallet. Nothing is held for you, and every trade settles on-chain in seconds. $BUKZ is the city's coin.</p>`],
       ['stocks', 'stocks', `<p>The stocks are <b>xStocks</b>: tokens issued by Backed, each backed 1:1 by the real share held with a regulated custodian, with a price that tracks the share. They are not the shares themselves and carry no voting rights. <b>xStocks are not offered to US persons</b> or in some other countries; the terminal asks you to confirm before your first trade.</p><p>Prices come live from Jupiter. The chart shows the real share on its exchange (Nasdaq or NYSE). Time &amp; sales lists real trades from the token's deepest on-chain pool.</p>`],
       ['trade', 'how a trade works', `<ul><li>Pick a stock, choose buy or sell, and enter an amount in SOL or USDC.</li><li>Jupiter finds the best route. You see the price, the price impact and the minimum you will receive before you sign.</li><li>Your wallet (Phantom, Solflare or Backpack) signs and sends it. The terminal follows it until Solana confirms it and links the transaction.</li></ul><p>Quotes refresh every 15 seconds. If the price moves past your slippage (0.5%, 1% or 2%), the trade fails and nothing is spent.</p>`],
       ['city', 'the city', `<p>The city lists 24 assets: 8 real estate, 8 businesses and 8 rides. Each one becomes a real coin on pump.fun the first time someone claims it.</p><ul><li><b>Claim</b> an open asset: your browser makes the coin's key, you sign the launch in your wallet (about 0.02 SOL plus an optional first buy), and you become its founder.</li><li><b>Founders earn</b> pump.fun's creator fees on every trade of their coin.</li><li><b>Trade</b> any founded asset from the terminal like a stock.</li></ul><p>A city coin is a memecoin named after a city asset. It is not a share of a real building, business or vehicle.</p>`],
       ['perps', 'perps', `<p>The perps desk opens leveraged longs and shorts on <b>SOL, BTC and ETH</b> through Jupiter Perps.</p><ul><li>Pay collateral in USDC or SOL (at least $10) and pick a leverage from 1.1x to 100x. Position size = collateral × leverage.</li><li>Before you sign you see the entry price, your liquidation price and the open fee, quoted by Jupiter.</li><li>Your wallet signs, Jupiter's keeper fills the order in seconds, and the position shows up under positions with live PnL.</li><li>Close a position with one click (you confirm, then sign). You receive USDC.</li></ul><p><b>If the price reaches your liquidation price you lose your whole collateral.</b> Borrow fees accrue while a position is open.</p>`],
-      ['terminal', 'the terminal', `<div class="kv"><span>/</span><span>focus the command line</span><span>1 2 3 4 5 6</span><span>trade · stocks · city · perps · portfolio · docs</span><span>L / S</span><span>long / short on the perps desk</span><span>↑ ↓</span><span>move through the watchlist</span><span>F2</span><span>filter the watchlist</span><span>F3 / F4</span><span>buy / sell in the order ticket</span></div><p>Commands:</p><div class="kv"><span>buy nvda 0.5 sol</span><span>fill the ticket to buy NVDA with 0.5 SOL</span><span>sell tsla all</span><span>sell everything you hold (also 50%)</span><span>chart aapl 1m</span><span>open a chart (1d, 1w, 1m, 6m, 1y)</span><span>find gold</span><span>filter the watchlist</span><span>long sol 50 5x</span><span>fill the perps ticket: long SOL with 50 USDC at 5x</span><span>city</span><span>open the city</span><span>portfolio · docs · connect</span><span>open a view or the wallet sheet</span></div>`],
-      ['fees', 'fees', `<p>markets adds no fee to trades. You pay the Solana network fee and the price impact of the route, both shown before you sign. City launches cost what pump.fun charges to create a coin, plus your optional first buy.</p>`],
-      ['safety', 'safety', `<ul><li>markets never asks for a seed phrase or a private key, and never holds funds.</li><li>Every transaction is built by Jupiter or PumpPortal and shown in your wallet before you sign it.</li><li>A city coin's mint key is made in your browser and only its public address leaves it.</li><li>Thin markets (less than $5,000 on-chain) are labelled; a trade there can move the price a lot.</li></ul>`],
+      ['trenches', 'the trenches', `<p>The trenches tab is a live feed of <b>pump.fun</b> coins in three columns: <b>new</b> (just launched), <b>final stretch</b> (close to filling the bonding curve) and <b>graduated</b> (moved to PumpSwap). It refreshes every few seconds and pauses a column while your pointer is over it.</p><ul><li>Every row shows market cap, 5-minute volume and buys/sells, holders, and how much the top 10 holders, the dev, snipers and insiders own, from Jupiter's data. Red tags are the ones to read twice.</li><li><b>⚡ Quick buy</b> buys the amount you set (0.05 to 1 SOL) in one click; your wallet still asks you to sign.</li><li>Open a coin for its chart, numbers and a buy and sell ticket. Sell 25, 50, 75 or 100% of what you hold. <b>Your bags</b> at the top lists the trench coins in your wallet with a one-click sell.</li><li>Paste any contract address in the search to open and trade it.</li></ul><p>Trades route through Jupiter, on the pump.fun curve or PumpSwap. Slippage is 5, 10 or 20%. These coins are extremely risky: most go to zero, often within minutes.</p>`],
+      ['terminal', 'the terminal', `<div class="kv"><span>/</span><span>focus the command line</span><span>1 – 8</span><span>overview · trade · stocks · city · perps · trenches · portfolio · docs</span><span>L / S</span><span>long / short on the perps desk</span><span>↑ ↓</span><span>move through the watchlist</span><span>F2</span><span>filter the watchlist</span><span>F3 / F4</span><span>buy / sell in the order ticket</span></div><p>Commands:</p><div class="kv"><span>buy nvda 0.5 sol</span><span>fill the ticket to buy NVDA with 0.5 SOL</span><span>sell tsla all</span><span>sell everything you hold (also 50%)</span><span>chart aapl 1m</span><span>open a chart (1d, 1w, 1m, 6m, 1y)</span><span>find gold</span><span>filter the watchlist</span><span>long sol 50 5x</span><span>fill the perps ticket: long SOL with 50 USDC at 5x</span><span>city · trench</span><span>open the city or the trenches (trench &lt;address&gt; opens one coin)</span><span>star nvda</span><span>star or unstar a stock in the watchlist</span><span>alert nvda 170</span><span>ring when NVDA crosses $170 (while a tab is open) · alerts lists them</span><span>share</span><span>make a picture of your bag to post</span><span>portfolio · docs · connect</span><span>open a view or the wallet sheet</span></div>`],
+      ['fees', 'fees', `<p>Bukz adds no fee to trades. You pay the Solana network fee and the price impact of the route, both shown before you sign. City launches cost what pump.fun charges to create a coin, plus your optional first buy.</p>`],
+      ['safety', 'safety', `<ul><li>Bukz never asks for a seed phrase or a private key, and never holds funds.</li><li>Every transaction is built by Jupiter or PumpPortal and shown in your wallet before you sign it.</li><li>A city coin's mint key is made in your browser and only its public address leaves it.</li><li>Thin markets (less than $5,000 on-chain) are labelled; a trade there can move the price a lot.</li></ul>`],
       ['data', 'where the data comes from', `<div class="kv"><span>prices, logos, holders</span><span>Jupiter token API</span><span>quotes and swaps</span><span>Jupiter swap API</span><span>stock charts</span><span>the share on its exchange, via Yahoo Finance</span><span>pool charts, time &amp; sales</span><span>GeckoTerminal</span><span>balances, confirmations</span><span>Solana RPC</span><span>city launches</span><span>pump.fun and PumpPortal</span></div>`],
-      ['risk', 'risk', `<p>Prices can move fast. Tokenized stocks can trade away from the share when markets are closed or liquidity is thin. City coins are memecoins and can go to zero. Nothing here is financial advice. markets is independent and is not affiliated with any game studio, Backed, Jupiter, pump.fun or the listed companies.</p>`],
+      ['risk', 'risk', `<p>Prices can move fast. Tokenized stocks can trade away from the share when markets are closed or liquidity is thin. City coins are memecoins and can go to zero. Nothing here is financial advice. Bukz is independent and is not affiliated with any game studio, Backed, Jupiter, pump.fun or the listed companies.</p>`],
     ];
     $('#docsBody').innerHTML = `<nav>${sec.map(([id, t]) => `<a href="#docs/${id}" data-doc="${id}">${t}</a>`).join('')}</nav><article>${sec.map(([id, t, h]) => `<h2 id="doc-${id}">${t}</h2>${h}`).join('')}</article>`;
     $('#docsBody nav').addEventListener('click', e => { const a = e.target.closest('[data-doc]'); if (!a) return; e.preventDefault(); const h = document.getElementById('doc-' + a.dataset.doc); if (h) h.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
@@ -741,7 +784,7 @@
   const OV = { sparks: {}, sparksAt: 0, spy: null, spyAt: 0, shown: false, drawn: {}, last: {} };
   function spark(vals, up) {
     if (!vals || vals.length < 2) return '<svg viewBox="0 0 200 46"></svg>';
-    const lo = Math.min(...vals), hi = Math.max(...vals), W = 200, H = 46, d = (hi - lo) || 1, c = up ? '#1f9e66' : '#d6416a';
+    const lo = Math.min(...vals), hi = Math.max(...vals), W = 200, H = 46, d = (hi - lo) || 1, c = up ? '#1f9e66' : '#d64457';
     const pts = vals.map((v, i) => `${(i / (vals.length - 1) * W).toFixed(1)},${(H - 3 - (v - lo) / d * (H - 8)).toFixed(1)}`).join(' ');
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polygon points="0,${H} ${pts} ${W},${H}" fill="${c}" fill-opacity=".08"/><polyline points="${pts}" fill="none" stroke="${c}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
   }
@@ -761,7 +804,7 @@
     const up = L.filter(s => s.ch24 > 0.05).length, dn = L.filter(s => s.ch24 < -0.05).length, fl = L.length - up - dn, n = L.length || 1;
     const liq = S.P.stocks.reduce((a, s) => a + (s.liq || 0), 0), hold = S.P.stocks.reduce((a, s) => a + (s.holders || 0), 0), avg = L.length ? L.reduce((a, s) => a + s.ch24, 0) / L.length : null;
     $('#ovBrd').innerHTML = `<div><div class="row2"><span class="k">Up vs down</span><span class="v"><span class="up">${up}</span><span class="mute" style="font-size:15px"> / </span><span class="dn">${dn}</span></span></div>
-        <div class="bb${first ? ' grow' : ''}" style="margin-top:10px"><i style="width:${up / n * 100}%;background:#1f9e66"></i><i style="width:${fl / n * 100}%;background:#d9d1e1"></i><i style="width:${dn / n * 100}%;background:#d6416a"></i></div>
+        <div class="bb${first ? ' grow' : ''}" style="margin-top:10px"><i style="width:${up / n * 100}%;background:#1f9e66"></i><i style="width:${fl / n * 100}%;background:#ddd4c4"></i><i style="width:${dn / n * 100}%;background:#d64457"></i></div>
         <div class="bl"><span class="up">${up} up</span><span class="mute">${fl} flat</span><span class="dn">${dn} down</span></div></div>
       <div class="row2"><span class="k">Average move</span><span class="v ${cls(avg)}">${pc(avg)}</span></div>
       <div class="row2"><span class="k">On-chain liquidity</span><span class="v">${big(liq)}</span></div>
@@ -869,7 +912,37 @@
         <div class="t3">${trTags(c)}</div>${bar}</div>
       <button class="qb" data-qb="${esc(c.mint)}" aria-label="Buy ${esc(TR.amt)} SOL of ${esc(c.sym)}">⚡ ${esc(TR.amt)}</button></div>`;
   }
-  function trFilter(L) { const q = TR.q.trim().toLowerCase(); return !q ? L : L.filter(c => (c.name || '').toLowerCase().includes(q) || (c.sym || '').toLowerCase().includes(q) || c.mint.toLowerCase() === q); }
+  TR.f = { soc: store.get('markets.tr.soc') === '1', safe: store.get('markets.tr.safe') === '1' };
+  const redFlag = c => (c.top10 != null && c.top10 > 35) || (c.dev != null && c.dev > 8) || (c.snipe != null && c.snipe > 20) || (c.insider != null && c.insider > 20);
+  function trFilter(L) {
+    const q = TR.q.trim().toLowerCase();
+    return L.filter(c => (!q || (c.name || '').toLowerCase().includes(q) || (c.sym || '').toLowerCase().includes(q) || c.mint.toLowerCase() === q) && (!TR.f.soc || c.x || c.tg || c.web) && (!TR.f.safe || !redFlag(c)));
+  }
+  $('#trFlt').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; const k = b.dataset.f; TR.f[k] = !TR.f[k]; store.set('markets.tr.' + k, TR.f[k] ? '1' : '0'); b.classList.toggle('on', TR.f[k]); renderTrench(); });
+  $$('#trFlt [data-f]').forEach(b => b.classList.toggle('on', !!TR.f[b.dataset.f]));
+  // your bags: the trench coins in the connected wallet, each one click from cash
+  const BAGX = new Set();
+  function bagList() { return (S.bal && S.bal.tokens || []).filter(t => t.kind === 'token' && t.raw && t.raw !== '0' && (t.value == null || t.value >= 0.01)).sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, 12); }
+  function renderBags() {
+    const el = $('#trBags'); if (!el) return;
+    const L = WAL.W.addr ? bagList() : [];
+    el.hidden = !L.length; if (!L.length) return;
+    $('#trBagL').innerHTML = L.map(t => `<div class="bag" data-bag="${esc(t.mint)}"><span class="ti">${mono(t.sym)}${t.icon ? `<img src="${esc(t.icon)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span><span class="bm"><b>${esc(t.sym)}</b><small>${t.value != null ? usd(t.value) : amt(t.amount, 0)}${t.ch24 != null ? ` <em class="${cls(t.ch24)}">${pc(t.ch24)}</em>` : ''}</small></span><button class="kb" data-sellall="${esc(t.mint)}" ${BAGX.has(t.mint) ? 'disabled' : ''}>${BAGX.has(t.mint) ? 'selling…' : 'sell all'}</button></div>`).join('');
+  }
+  $('#trBagL').addEventListener('click', async e => {
+    const b = e.target.closest('[data-sellall]');
+    if (!b) { const r = e.target.closest('[data-bag]'); if (r) location.hash = '#trench/' + r.dataset.bag; return; }
+    const t = bagList().find(x => x.mint === b.dataset.sellall); if (!t || BAGX.has(t.mint)) return;
+    BAGX.add(t.mint); renderBags();
+    try {
+      toast(`selling all your $${t.sym}…`);
+      const { q, sig } = await trSwap(t.mint, 'SOL', t.raw, m => toast(m.replace(/<[^>]+>/g, '')));
+      toast('sent, waiting for solana…');
+      const st = await waitSig(sig);
+      toast(st === 'ok' ? `sold $${t.sym} for ${amt(q.outUi, 4)} SOL` : st === 'failed' ? 'failed on-chain, nothing was sold' : 'sent, not confirmed yet');
+    } catch (err) { toast(WAL.isReject(err) ? 'cancelled in the wallet' : err.message); }
+    BAGX.delete(t.mint); setTimeout(refreshBal, 1200); setTimeout(refreshBal, 6000); renderBags();
+  });
   function renderTrench() {
     if (!TR.d) return;
     const q = TR.q.trim();
@@ -881,11 +954,16 @@
       if (col === 'fresh' && B58.test(q) && !trFind(q)) h = `<button class="tc-open" data-open="${esc(q)}">Open ${esc(short(q))} and trade it →</button>` + h;
       $('#trl-' + col).innerHTML = h;
     }
-    trAll().forEach(c => TR.seen.add(c.mint)); TR.drawn = true;
+    trAll().forEach(c => TR.seen.add(c.mint)); TR.drawn = true; renderBags();
+  }
+  function renderOvTrench() {
+    const el = $('#ovTr'); if (!el || !TR.d) return;
+    el.innerHTML = (TR.d.fresh || []).slice(0, 5).map(c => `<div class="rw" data-go="#trench/${esc(c.mint)}">${lg(c.sym, c.icon, 'm')}<div><b>${esc(c.name || c.sym)}</b><small>$${esc(c.sym)}${c.holders != null ? ' · ' + int(c.holders) + ' holders' : ''}</small></div><div class="r">${big(c.mcap)}<small class="up" data-born="${c.born || ''}">${ago(c.born)}</small></div></div>`).join('') || '<div class="empty">The trenches are quiet for a second.</div>';
   }
   async function loadTrench() {
+    TR.at = Date.now();
     try {
-      TR.d = await api('trench'); TR.err = null;
+      TR.d = await api('trench'); TR.err = null; renderOvTrench();
       $('#trSt').innerHTML = `<i class="dot">●</i> live · ${TR.d.src === 'jupiter' ? 'jupiter data' : 'pump.fun data'}`;
       renderTrench();
     } catch (e) {
@@ -893,8 +971,8 @@
       if (!TR.d) TRC.forEach(k => { $('#trl-' + k).innerHTML = `<div class="empty">The feed is not answering: ${esc(e.message)}</div>`; });
     }
   }
-  setInterval(() => { if (!document.hidden && S.view === 'trench') loadTrench(); }, 3000);
-  setInterval(() => { if (S.view !== 'trench' || document.hidden) return; $$('#trGrid [data-born]').forEach(e => { if (e.dataset.born) e.textContent = ago(+e.dataset.born); }); }, 1000);
+  setInterval(() => { if (document.hidden) return; if (S.view === 'trench' || (S.view === 'overview' && Date.now() - (TR.at || 0) > 9000)) loadTrench(); }, 3000);
+  setInterval(() => { if ((S.view !== 'trench' && S.view !== 'overview') || document.hidden) return; $$('#trGrid [data-born], #ovTr [data-born]').forEach(e => { if (e.dataset.born) e.textContent = ago(+e.dataset.born); }); }, 1000);
   if (matchMedia('(hover: hover)').matches) $$('#trGrid .tcol').forEach(el => { el.addEventListener('mouseenter', () => { TR.hov = el.dataset.col; $('#trp-' + TR.hov).hidden = false; }); el.addEventListener('mouseleave', () => { TR.hov = null; renderTrench(); }); });
   function trSetAmt(v) { TR.amt = v; store.set('markets.tr.amt', v); $$('#trAmt button').forEach(b => b.classList.toggle('on', b.dataset.a === v)); $$('#trGrid .qb').forEach(b => { b.textContent = '⚡ ' + v; }); }
   function trSetSlip(v) { TR.slip = v; store.set('markets.tr.slip', String(v)); $$('#trSlip button, #tsSlip button').forEach(b => b.classList.toggle('on', +b.dataset.s === v)); if (TR.tk) trQuoteSoon(); }
@@ -941,7 +1019,7 @@
   }
   async function trInfo() {
     const m = TR.tk; if (!m) return;
-    try { const j = await api('token', { mint: m }); if (TR.tk !== m) return; const l = trFind(m); TR.info = Object.assign({}, j, l ? { bc: l.bc != null ? l.bc : j.bc, snipe: l.snipe, insider: l.insider, b5: l.b5, s5: l.s5, v5: l.v5, grad: l.grad, pool: l.pool } : {}); TR.infoAt = Date.now(); renderTs(); }
+    try { const j = await api('token', { mint: m }); if (TR.tk !== m) return; const l = trFind(m); const pick = k => (j[k] != null && j[k] !== 0) || !l || l[k] == null ? j[k] : l[k]; TR.info = Object.assign({}, j, l ? { bc: l.bc != null ? l.bc : j.bc, snipe: l.snipe, insider: l.insider, b5: l.b5, s5: l.s5, v5: l.v5, grad: l.grad, pool: l.pool, mcap: pick('mcap'), holders: pick('holders'), liq: pick('liq'), usd: pick('usd'), top10: pick('top10'), dev: pick('dev') } : {}); TR.infoAt = Date.now(); renderTs(); }
     catch (e) { if (TR.tk === m && !TR.info.sym) { $('#tsSub').textContent = e.message; } }
   }
   function renderTs() {
@@ -1023,6 +1101,54 @@
   WAL.on(() => { if (TR.tk) renderTsTicket(); });
   trSetAmt(TR.amt); $$('#trSlip button, #tsSlip button').forEach(b => b.classList.toggle('on', +b.dataset.s === TR.slip));
 
+  // ---------------------------------------------------------------- share my bag: a picture card of the wallet, no address on it
+  $('#pf').addEventListener('click', e => { if (e.target.closest('#pfs')) openShare(); });
+  let shareUrl = null;
+  async function drawShare() {
+    const B = S.bal; if (!B) return null;
+    const T = totals(), show = $('#shAmt').checked;
+    try { await Promise.all([document.fonts.load('900 64px Unbounded'), document.fonts.load('800 40px Unbounded'), document.fonts.load('600 20px Inter')]); } catch { }
+    const W = 1200, H = 675, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+    g.fillStyle = '#f7f2e9'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#8a50d0'; g.fillRect(0, 0, 470, H);
+    // the logo, as on the banner: cream wordmark, a deep purple drop, three sparkles
+    const spark = (x, y, r, c) => { g.fillStyle = c; g.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, rr = i % 2 ? r * .22 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); g.fill(); };
+    g.font = '900 64px Unbounded'; g.fillStyle = '#2a1470'; g.fillText('bukz', 68, 138); g.fillStyle = '#fff8e8'; g.fillText('bukz', 64, 134);
+    const lw = g.measureText('bukz').width; spark(64 + lw + 16, 82, 13, '#fff8e8'); spark(64 + lw + 34, 108, 6, '#f2b134'); spark(52, 128, 8, '#fff8e8');
+    g.fillStyle = '#fff8e8'; g.globalAlpha = .75; g.font = '700 15px Inter'; g.fillText('MY BAG', 64, 268); g.globalAlpha = 1;
+    const tot = show ? usd(T.tot) : '••••';
+    let fs = 70; g.font = `800 ${fs}px Unbounded`; while (g.measureText(tot).width > 360 && fs > 30) { fs -= 4; g.font = `800 ${fs}px Unbounded`; } g.fillStyle = '#2a1470'; g.fillText(tot, 68, 268 + fs + 14); g.fillStyle = '#fff8e8'; g.fillText(tot, 64, 268 + fs + 10);
+    const pct = T.tot > 0 && T.day != null ? T.day / Math.max(1e-9, T.tot - T.day) * 100 : null;
+    g.font = '700 26px Inter'; g.fillStyle = (T.day || 0) >= 0 ? '#b8ffd9' : '#ffd0d6';
+    g.fillText(`${(T.day || 0) >= 0 ? '▲' : '▼'} ${show ? usd(Math.abs(T.day || 0)) + '  ' : ''}${pct != null ? pc(pct) : ''} today`, 64, 268 + fs + 62);
+    g.fillStyle = 'rgba(255,248,232,.8)'; g.font = '600 17px Inter'; g.fillText('the city runs on bukz · ' + location.host, 64, H - 30);
+    // the top five holdings, by value
+    const rows = [{ sym: 'SOL', name: 'Solana', value: B.solValue, ch24: B.solCh24 }].concat(T.st, T.oth, T.cash).filter(t => t && t.value != null && t.value >= 0.01).sort((a, b) => b.value - a.value).slice(0, 5);
+    g.fillStyle = '#1c1a3a'; g.font = '800 30px Unbounded'; g.fillText('Top holdings', 530, 112);
+    const hues = ['#8a50d0', '#e08a1e', '#138a57', '#b04bb5', '#d03a4f'];
+    rows.forEach((t, i) => {
+      const y = 150 + i * 90; g.fillStyle = '#fffdf8'; g.beginPath(); g.roundRect ? g.roundRect(530, y, 606, 76, 18) : g.rect(530, y, 606, 76); g.fill();
+      g.fillStyle = hues[i % hues.length]; g.beginPath(); g.arc(572, y + 38, 22, 0, 7); g.fill();
+      { const ini = String(t.sym).replace(/[^\w]/g, '').slice(0, 4).toUpperCase(); g.fillStyle = '#fffaf0'; g.font = `800 ${ini.length > 3 ? 9.5 : 12}px Unbounded`; g.textAlign = 'center'; g.fillText(ini, 572, y + 42); g.textAlign = 'left'; }
+      g.fillStyle = '#1c1a3a'; g.font = '800 22px Inter'; g.fillText(String(t.sym).slice(0, 12), 612, y + 34);
+      g.fillStyle = '#8a85a2'; g.font = '500 15px Inter'; g.fillText(String(t.name || '').slice(0, 30), 612, y + 58);
+      g.textAlign = 'right'; g.fillStyle = '#1c1a3a'; g.font = '800 22px Inter'; g.fillText(show ? usd(t.value) : (T.tot > 0 ? (t.value / T.tot * 100).toFixed(1) + '%' : '—'), 1110, y + 34);
+      if (t.ch24 != null) { g.fillStyle = t.ch24 >= 0 ? '#138a57' : '#d03a4f'; g.font = '700 15px Inter'; g.fillText(pc(t.ch24), 1110, y + 58); } g.textAlign = 'left';
+    });
+    if (!rows.length) { g.fillStyle = '#8a85a2'; g.font = '600 20px Inter'; g.fillText('An empty bag. The city is waiting.', 530, 190); }
+    g.fillStyle = '#8a85a2'; g.font = '500 14px Inter'; g.fillText(new Date().toISOString().slice(0, 10) + ' · prices live from the chain · not financial advice', 530, H - 30);
+    return c;
+  }
+  async function renderShare() {
+    const c = await drawShare(); if (!c) return;
+    const url = c.toDataURL('image/png'); shareUrl = url; $('#shImg').src = url; $('#shDl').href = url;
+    c.toBlob(b => { shareUrl = b; }, 'image/png');
+  }
+  function openShare() { if (!WAL.W.addr) return openWallet(); if (!S.bal) { toast('reading your wallet first…'); refreshBal().then(() => S.bal && openShare()); return; } $('#shsheet').classList.add('on'); $('#shImg').removeAttribute('src'); renderShare(); }
+  $('#shAmt').addEventListener('change', renderShare);
+  $('#shCp').addEventListener('click', async () => { try { if (!(shareUrl instanceof Blob) || !window.ClipboardItem) throw new Error('x'); await navigator.clipboard.write([new ClipboardItem({ 'image/png': shareUrl })]); toast('picture copied, paste it into your post'); } catch { toast('copying pictures is not supported here, use download'); } });
+  $('#shX').addEventListener('click', () => { const T = S.bal ? totals() : null; const text = `My bag on Bukz${T && $('#shAmt').checked ? ': ' + usd(T.tot) : ''}. The city runs on bukz.`; open('https://x.com/intent/post?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(location.origin), '_blank', 'noopener'); });
+
   // ---------------------------------------------------------------- router
   const ind = document.createElement('span'); ind.className = 'tab-ind'; $('#tabs').prepend(ind);
   function placeInd() { const a = $('#tabs a.on'); if (!a) { ind.style.opacity = 0; return; } ind.style.opacity = 1; ind.style.width = a.offsetWidth + 'px'; ind.style.transform = `translateX(${a.offsetLeft}px)`; requestAnimationFrame(() => ind.classList.add('ready')); }
@@ -1035,7 +1161,7 @@
     $$('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.v === v));
     placeInd();
     { const t = $('#tabs'), a = $('#tabs a.on'); if (a && t.scrollWidth > t.clientWidth) t.scrollTo({ left: a.offsetLeft - (t.clientWidth - a.offsetWidth) / 2, behavior: still ? 'auto' : 'smooth' }); }
-    if (v === 'overview') { renderOverview(); loadOverview(); if (OV.spy) requestAnimationFrame(() => drawCandles(OV.spy, $('#ovChart'), '1D', $('#ovOhlc'), $('#ovChLbl'))); }
+    if (v === 'overview') { renderOverview(); loadOverview(); if (typeof loadTrench === 'function' && (!TR.d || Date.now() - (TR.at || 0) > 9000)) loadTrench(); else renderOvTrench(); if (OV.spy) requestAnimationFrame(() => drawCandles(OV.spy, $('#ovChart'), '1D', $('#ovOhlc'), $('#ovChLbl'))); }
     if (v === 'trade') { renderTicket(); requestAnimationFrame(drawChart); }
     if (v === 'markets') renderMarkets();
     if (v === 'portfolio') { renderPortfolio(); if (WAL.W.addr && Date.now() - S.balAt > 8000) refreshBal(); }

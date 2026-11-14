@@ -160,10 +160,13 @@ export function startCity(canvas, opt = {}) {
   const deg = THREE.MathUtils.degToRad;
   const sunDir = new THREE.Vector3().setFromSphericalCoords(1, deg(90 - (opt.sunElev != null ? opt.sunElev : 0.6)), deg(opt.sunAz != null ? opt.sunAz : 252));
 
+  // the palette: sky bands, haze, light and neon (opt.pal overrides any of it; the default is the pastel dusk)
+  const PAL = Object.assign({ zen: [0.1, 0.2, 0.38], mid: [0.34, 0.33, 0.56], hor: [1.15, 0.68, 0.66], fog: [1.42, 0.78, 0.83], hemi: ['#ffd6d4', '#2e2942', 0.52], sun: ['#ffae86', 0.7], fill: ['#bdb9ff', 0.55], neon: null, water: '#1e2440', glint: '#ffb08a' }, opt.pal || {});
+
   // ---------------------------------------------------------------- sky, its light, and the air
   const lin = (r, g, b) => new THREE.Vector3(r, g, b);
   const skyMat = new THREE.ShaderMaterial({
-    uniforms: { uSun: { value: sunDir }, uTime: U.uTime, uZen: { value: lin(0.1, 0.2, 0.38) }, uMid: { value: lin(0.34, 0.33, 0.56) }, uHor: { value: lin(1.15, 0.68, 0.66) }, uClouds: { value: 1 }, uFog: { value: lin(1.42, 0.78, 0.83) } },
+    uniforms: { uSun: { value: sunDir }, uTime: U.uTime, uZen: { value: lin(...PAL.zen) }, uMid: { value: lin(...PAL.mid) }, uHor: { value: lin(...PAL.hor) }, uClouds: { value: 1 }, uFog: { value: lin(...PAL.fog) } },
     vertexShader: 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: SKY_F, side: THREE.BackSide, depthWrite: false, fog: false,
   });
@@ -172,11 +175,11 @@ export function startCity(canvas, opt = {}) {
   const envMat = skyMat.clone(); envMat.uniforms.uClouds.value = 0; envMat.uniforms.uSun.value = sunDir;
   const envScene = new THREE.Scene(); envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), envMat));
   scene.environment = pmrem.fromScene(envScene, 0.035, 0.1, 200).texture;
-  scene.fog = new THREE.FogExp2(new THREE.Color().setRGB(1.42, 0.78, 0.83), opt.fog || 0.00027);
+  scene.fog = new THREE.FogExp2(new THREE.Color().setRGB(...PAL.fog), opt.fog || 0.00027);
 
-  scene.add(new THREE.HemisphereLight(new THREE.Color('#ffd6d4'), new THREE.Color('#2e2942'), 0.52));
-  const sun = new THREE.DirectionalLight(new THREE.Color('#ffae86'), 0.7); sun.position.set(-500, 520, -260); scene.add(sun);
-  const fill = new THREE.DirectionalLight(new THREE.Color('#bdb9ff'), 0.55); fill.position.set(700, 300, 160); scene.add(fill);
+  scene.add(new THREE.HemisphereLight(new THREE.Color(PAL.hemi[0]), new THREE.Color(PAL.hemi[1]), PAL.hemi[2]));
+  const sun = new THREE.DirectionalLight(new THREE.Color(PAL.sun[0]), PAL.sun[1]); sun.position.set(-500, 520, -260); scene.add(sun);
+  const fill = new THREE.DirectionalLight(new THREE.Color(PAL.fill[0]), PAL.fill[1]); fill.position.set(700, 300, 160); scene.add(fill);
 
   // ---------------------------------------------------------------- facades: windows computed per pixel from world position
   // STYLE 0 = towers (glass grid, or condo balconies), 1 = villas and low blocks (ribbon windows)
@@ -291,7 +294,7 @@ totalEmissiveRadiance += winGlow;`);
   }
   const col = h => new THREE.Color(h);
   const hot = (h, k) => new THREE.Color(h).multiplyScalar(k || 4.5);
-  const NEON = ['#45f0ff', '#ff4fae', '#a16bff', '#ff7a5c', '#ffd34f', '#ff5fd6', '#5aa6ff', '#fff3e8'];
+  const NEON = PAL.neon || ['#45f0ff', '#ff4fae', '#a16bff', '#ff7a5c', '#ffd34f', '#ff5fd6', '#5aa6ff', '#fff3e8'];
 
   // ---------------------------------------------------------------- the bay
   const normals = waterNormals();
@@ -300,7 +303,7 @@ totalEmissiveRadiance += winGlow;`);
     normals.repeat.set(900, 900);
     waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), new THREE.MeshStandardMaterial({ color: '#2a3654', roughness: 0.08, metalness: 0.2, normalMap: normals, normalScale: new THREE.Vector2(0.22, 0.22), envMapIntensity: 1.4 }));
   } else {
-    waterMesh = mirrorWater(new THREE.PlaneGeometry(60000, 60000), { res: opt.mirrorRes || (small ? 384 : 768), normals, sunDir, size: 1.1, distortion: 0.8, color: '#1e2440', sunColor: '#ffb08a', refl: 0.82 });
+    waterMesh = mirrorWater(new THREE.PlaneGeometry(60000, 60000), { res: opt.mirrorRes || (small ? 384 : 768), normals, sunDir, size: 1.1, distortion: 0.8, color: PAL.water, sunColor: PAL.glint, refl: 0.82 });
   }
   waterMesh.rotation.x = -Math.PI / 2; scene.add(waterMesh);
 
@@ -340,7 +343,7 @@ totalEmissiveRadiance += winGlow;`);
   // the tallest tower and its spire
   const sig = { x: -820, z: 330, w: 46, d: 46, h: 330, y: 1.6, lit: 0.18, col: '#c4bdd3' };
   towers.push(sig, { x: sig.x, z: sig.z, y: 331.6, w: 30, h: 46, d: 30, lit: 0.2, col: '#c4bdd3' });
-  crowns.push({ x: sig.x, z: sig.z, y: 377.6, w: 1.6, h: 70, d: 1.6, col: '#fff3e8' });
+  if (!opt.coin || opt.landmark === false) crowns.push({ x: sig.x, z: sig.z, y: 377.6, w: 1.6, h: 70, d: 1.6, col: '#fff3e8' });
   inst(box, facade(0, { roughness: 0.55, metalness: 0.1 }), towers, b => col(b.col).multiplyScalar(0.68));
   inst(box, new THREE.MeshStandardMaterial({ roughness: 0.9 }), roofs, b => col(b.col));
   const crownMesh = inst(box, new THREE.MeshBasicMaterial(), crowns.concat(strips), b => hot(b.col, 4.4));
@@ -516,6 +519,43 @@ totalEmissiveRadiance += winGlow;`);
   const plane = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 6), new THREE.MeshBasicMaterial({ color: hot('#ffffff', 6) })); scene.add(plane);
   moveTraffic(0); moveBoats(0, 0);
 
+  // ---------------------------------------------------------------- bukz: gold coins drifting down over the bay, a giant one turning on the tallest tower
+  let coins = null, bigCoin = null;
+  if (opt.coin) {
+    const edge = new THREE.MeshStandardMaterial({ color: '#d58a20', metalness: 1, roughness: 0.3, envMapIntensity: 1.2 });
+    const face = new THREE.MeshStandardMaterial({ color: '#f4b63a', metalness: 0.72, roughness: 0.32, envMapIntensity: 1.1 }), face2 = face.clone();
+    // the face picture arrives a moment later; each side gets its own turn so the b reads the right way round from both
+    new THREE.TextureLoader().load(opt.coin, tex => {
+      tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.center.set(0.5, 0.5); tex.rotation = opt.coinRot != null ? opt.coinRot : 0;
+      const tex2 = tex.clone(); tex2.rotation = opt.coinRot2 != null ? opt.coinRot2 : Math.PI;
+      for (const [m, t] of [[face, tex], [face2, tex2]]) { m.map = t; m.color.set('#ffffff'); m.needsUpdate = true; }
+    });
+    const N = opt.coins != null ? opt.coins : (small ? 24 : 60);
+    if (N > 0) {
+      coins = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 0.13, 36), [edge, face, face2], N); coins.frustumCulled = false; scene.add(coins);
+      coins.userData.s = Array.from({ length: N }, () => ({ x: -120 + R() * 560, y: R() * 320, z: -420 + R() * 840, r: 3.2 + R() * 2.6, vy: 8 + R() * 9, ax: R() * 6.28, ay: R() * 6.28, wx: (R() - 0.5) * 3.4, wy: (R() - 0.5) * 2.6, sw: R() * 6.28 }));
+    }
+    if (opt.landmark !== false) {
+      bigCoin = new THREE.Mesh(new THREE.CylinderGeometry(34, 34, 4.8, 72), [edge, face, face2]);
+      bigCoin.rotation.order = 'YXZ'; bigCoin.rotation.z = Math.PI / 2; bigCoin.position.set(sig.x, 416, sig.z); scene.add(bigCoin);
+    }
+  }
+  const KQ = new THREE.Quaternion(), KE = new THREE.Euler(), KM = new THREE.Matrix4(), KP = new THREE.Vector3(), KS = new THREE.Vector3();
+  function moveCoins(dt, t) {
+    if (bigCoin) bigCoin.rotation.y = opt.coinSpin != null ? opt.coinSpin : Math.PI + Math.sin(t * 0.35) * 0.6 + t * 0.12;
+    if (!coins) return;
+    const S = coins.userData.s;
+    for (let i = 0; i < S.length; i++) {
+      const c = S[i]; c.y -= c.vy * dt;
+      if (c.y < -4) { c.y = 300 + R() * 60; c.x = -120 + R() * 560; c.z = -420 + R() * 840; }
+      c.ax += c.wx * dt; c.ay += c.wy * dt;
+      KE.set(c.ax, c.ay, 0); KQ.setFromEuler(KE);
+      KP.set(c.x + Math.sin(t * 0.7 + c.sw) * 3, c.y, c.z + Math.cos(t * 0.5 + c.sw) * 3); KS.set(c.r, c.r, c.r);
+      KM.compose(KP, KQ, KS); coins.setMatrixAt(i, KM);
+    }
+    coins.instanceMatrix.needsUpdate = true;
+  }
+
   // the city wakes up: windows warm up, neon crowns flicker on one by one, the bridge lamps sweep on
   const LIGHTS = opt.lights != null ? opt.lights : 11, NIGHT = U.uNight.value;
   const crownAll = crowns.concat(strips), crownOn = crownAll.map((b, i) => i === crowns.length - 1 ? 5.2 : 1.8 + R() * 6.6);
@@ -547,10 +587,15 @@ totalEmissiveRadiance += winGlow;`);
 
   // ---------------------------------------------------------------- the shot: open high over the bay, glide down to the water, then drift
   const INTRO = opt.intro != null ? opt.intro : 9;
-  const P0 = new THREE.Vector3(1080, 175, 520), L0 = new THREE.Vector3(-700, 70, 120);
+  // opt.reveal: open on the giant coin atop the tallest tower, then pull back across the skyline to the bay
+  // the coin sits centred in the top third at first, above the title (revealZ moves it sideways, revealY up and down)
+  const RZ = opt.revealZ != null ? opt.revealZ : 0;
+  const P0 = opt.reveal ? new THREE.Vector3(sig.x + (opt.revealD || 300), 404, sig.z) : new THREE.Vector3(1080, 175, 520);
+  const L0 = opt.reveal ? new THREE.Vector3(sig.x, opt.revealY || 355, sig.z + RZ) : new THREE.Vector3(-700, 70, 120);
   const tmpP = new THREE.Vector3(), tmpL = new THREE.Vector3();
   function place(t) {
     const p = camera.aspect < 0.8, k = ease(t / INTRO), c = Math.max(0, t - INTRO * 0.6);
+    if (opt.reveal) { L0.z = sig.z + RZ; P0.x = sig.x + (p ? 330 : (opt.revealD || 330)); L0.y = p ? 330 : (opt.revealY || 336); }
     const zc = Math.sin(c * 0.012) * 260, xc = Math.sin(c * 0.0071) * 45;
     tmpP.set((p ? 640 : 560) + xc, (p ? 30 : 26) + Math.sin(c * 0.11) * 0.8 + Math.sin(c * 0.023) * 3, zc);
     tmpL.set(-760, p ? 112 : 96, zc * 0.6 + 40 + Math.sin(c * 0.017) * 14);
@@ -578,7 +623,7 @@ totalEmissiveRadiance += winGlow;`);
     t += dt; U.uTime.value = t;
     if (waterMesh.material.uniforms) waterMesh.material.uniforms.time.value = t * 0.6; else normals.offset.set(t * 0.002, t * 0.001);
     ptrX += (ptrTX - ptrX) * Math.min(1, dt * 2.2); ptrY += (ptrTY - ptrY) * Math.min(1, dt * 2.2);
-    moveTraffic(dt); moveBoats(dt, t); moveGulls(t); moveHeli(t); wake(t); place(t);
+    moveTraffic(dt); moveBoats(dt, t); moveGulls(t); moveHeli(t); moveCoins(dt, t); wake(t); place(t);
     if (opt.calm) { wings.visible = heli.visible = beam.visible = spot.visible = plane.visible = false; }
     if (flick.length && lightsDone) { for (const f of flick) { const ph = (t / 7 + f.ph) % 1; crownMesh.setColorAt(f.i, ph > 0.09 || hash1(Math.floor(t * 15) + f.i) > 0.5 ? f.c : f.off); } crownMesh.instanceColor.needsUpdate = true; }
   };

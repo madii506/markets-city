@@ -1,4 +1,4 @@
-/* markets: city items. Line icons drawn on a 64-unit grid, white strokes on a dusk tile.
+/* Bukz: city items. Line icons drawn on a 64-unit grid, white strokes on a dusk tile.
    Used for the city cards and, at claim time, rendered to a PNG that becomes the coin image. */
 (function () {
   const ICON = {
@@ -31,9 +31,9 @@
     heli: '<path d="M18 30h20a10 10 0 0 1 10 10v2a4 4 0 0 1-4 4H22a8 8 0 0 1-8-8v-4a4 4 0 0 1 4-4z"/><path d="M48 38h12M60 33v10"/><path d="M8 22h48M32 22v8"/><path d="M20 53h26M25 46v7M39 46v7"/><path d="M34 32h8v6h-8z"/>',
   };
   const PAL = {
-    estate: ['#3a3f86', '#8d5aa0', '#e9779a', '#ffb48f'],
-    biz: ['#33205f', '#7a3d9a', '#d45a9b', '#ff9bb8'],
-    ride: ['#1f2a6b', '#4a4fb0', '#8a7ae0', '#9fd2ff'],
+    estate: ['#2a1470', '#7a45c8', '#e0846a', '#ffc46b'],
+    biz: ['#26105e', '#6c3fc0', '#c6559a', '#f6a85a'],
+    ride: ['#241468', '#5b46c8', '#a07ae8', '#f2c46b'],
   };
   const CAT = { estate: 'real estate', biz: 'business', ride: 'ride' };
   let uid = 0;
@@ -62,7 +62,7 @@
   // the real photo of an item (made once on the server, served from the CDN); the line tile stays underneath as the fallback
   function photo(it, thumb) { const u = it.img || `/api/m?a=cimg&id=${encodeURIComponent(it.id)}&v=1`; return thumb ? u + '&s=t' : u; }
   function art(it, size, opt) {
-    return tile(it, size, Object.assign({ r: 0, slice: true }, opt || {})) + (it.id ? `<img class="ph" src="${photo(it)}" alt="" loading="lazy" decoding="async" onload="this.classList.add('on')" onerror="this.remove()">` : '');
+    return tile(it, size, Object.assign({ r: 0, slice: true }, opt || {})) + (it.id ? `<img class="cphoto" src="${photo(it)}" alt="" loading="lazy" decoding="async" onload="this.classList.add('on')" onerror="this.remove()">` : '');
   }
   // the coin image for a launch: the item's photo cropped square, else the line tile
   function photoPng(it, size) {
